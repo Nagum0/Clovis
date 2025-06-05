@@ -37,7 +37,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%v %v\n", len(parser.Stmts), len(parser.Errors))
+	fmt.Printf("Stmts: %v Errs: %v\n", len(parser.Stmts), len(parser.Errors))
 
 	for _, stmt := range parser.Stmts {
 		fmt.Println(stmt)

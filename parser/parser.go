@@ -101,25 +101,26 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 		)
 		return nil, err
 	}
-
+	
 	if p.match(lexer.ASSIGN) {
 		p.consume()
-		valExpr := p.parseExpression()
-		varDeclStmt.Value.SetVal(valExpr)
-	} else if p.match(lexer.SEMI) {
-		p.consume()
-	} 
+		value, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		varDeclStmt.Value.SetVal(value)
+	}
 
-	if varDeclStmt.Value.HasVal() && !p.match(lexer.SEMI) {
+	if !p.match(lexer.SEMI) {
 		err := NewParserError(
-			p.consume(),
-			"Expected a ';' after variable declaration",
+			p.peek(),
+			fmt.Sprintf("Expected ';' after variable declaration"),
 		)
 		return nil, err
 	} else {
 		p.consume()
 	}
-
+	
 	return varDeclStmt, nil
 }
 
@@ -143,9 +144,184 @@ func (p *Parser) parseForStmt() {
 
 }
 
-func (p *Parser) parseExpression() Expression {
+// <expression> ::= <equality>
+func (p *Parser) parseExpression() (Expression, error) {
+	return p.parseEquality()
+}
+
+// <equality> ::= <comparison> { ("==" | "!=") <comparison> }
+func (p *Parser) parseEquality() (Expression, error) {
+	left, err := p.parseComparison()
+	if err != nil {
+		return nil, err
+	}
+	
+	if p.matchAny(lexer.EQ, lexer.NEQ) {
+		op := p.consume().Type
+		right, err := p.parseComparison()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpression{
+			Type: UNKNOWN,
+			Left: left,
+			Op: op,
+			Right: right,
+		}
+	}
+
+	return left, nil
+}
+
+// <comparison> ::= <term> { ("<" | "<=" | ">" | ">=") <term> }
+func (p *Parser) parseComparison() (Expression, error) {
+	left, err := p.parseTerm()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.matchAny(lexer.LESS_THAN, lexer.LESS_EQ_THAN, lexer.GREATER_THAN, lexer.GREATER_EQ_THAN) {
+		op := p.consume().Type
+		right, err := p.parseTerm()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpression{
+			Type: UNKNOWN,
+			Left: left,
+			Op: op,
+			Right: right,
+		}
+	}
+
+	return left, nil
+}
+
+// <term> ::= <factor> { ("+" | "-") <factor> }
+func (p *Parser) parseTerm() (Expression, error) {
+	left, err := p.parseFactor()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.matchAny(lexer.PLUS, lexer.MINUS) {
+		op := p.consume().Type
+		right, err := p.parseFactor()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpression{
+			Type: UNKNOWN,
+			Left: left,
+			Op: op,
+			Right: right,
+		}
+	}
+
+	return left, nil
+}
+
+// <factor> ::= <unary> { ("*" | "/") <unary> }
+func (p *Parser) parseFactor() (Expression, error) {
+	left, err := p.parseUnary()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.matchAny(lexer.STAR, lexer.F_SLASH) {
+		op := p.consume().Type
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpression{
+			Type: UNKNOWN,
+			Left: left,
+			Op: op,
+			Right: right,
+		}
+	}
+
+	return left, nil
+}
+
+// <unary> ::= ( "!" | "-" ) <unary> | <primary>
+func (p *Parser) parseUnary() (Expression, error) {
+	if p.matchAny(lexer.NOT, lexer.MINUS) {
+		op := p.consume().Type
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
+
+		un := &UnaryExpression{
+			Type: UNKNOWN,
+			Op: op,
+			Right: right,
+		}
+
+		return un, nil
+	}
+
+	return p.parsePrimary()
+}
+
+// <primary> ::= <literal> | ident | "(" <expression> ")" 
+func (p *Parser) parsePrimary() (Expression, error) {
+	if p.matchAny(lexer.UINT_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
+		litExpr := &LiteralExpression{
+			Type: UNKNOWN,
+			Value: p.consume(),
+		}
+		return litExpr, nil
+	} else if p.match(lexer.IDENT) {
+		identExpr := &IdentExpression{
+			Type: UNKNOWN,
+			Ident: p.consume(),
+		}
+		return identExpr, nil
+	} else if p.match(lexer.OPEN_PAREN) {
+		return p.parseGroupExpr()
+	} else {
+		err := NewParserError(
+			p.peek(),
+			"Invalid expression",
+		)
+		return nil, err
+	}
+}
+
+// <groupExpr> ::= "(" <expression> ")"
+func (p *Parser) parseGroupExpr() (Expression, error) {
+	groupExpr := &GroupExpression{
+		Type: UNKNOWN,
+	}
+
 	p.consume()
-	return nil
+
+    expr, err := p.parseExpression()
+    if err != nil {
+    	return nil, err
+    }
+
+	groupExpr.Expr = expr
+    
+    if !p.match(lexer.CLOSE_PAREN) {
+    	err = NewParserError(
+        	p.consume(),
+        	"Expected ')' after group expression",
+    	)
+
+    	return nil, err
+    }
+
+    p.consume()
+
+    return groupExpr, nil
 }
 
 func (p *Parser) consume() lexer.Token {
@@ -154,8 +330,23 @@ func (p *Parser) consume() lexer.Token {
 	return t
 }
 
+func (p *Parser) peek() lexer.Token {
+	t := p.tokens[p.idx]
+	return t
+}
+
 func (p *Parser) match(tokenType lexer.TokenType) bool {
 	return p.tokens[p.idx].Type == tokenType
+}
+
+func (p *Parser) matchAny(tokenTypes ...lexer.TokenType) bool {
+	for _, t := range tokenTypes {
+		if p.tokens[p.idx].Type == t {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *Parser) isAtEnd() bool {

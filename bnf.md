@@ -25,5 +25,6 @@
 <term> ::= <factor> { ("+" | "-") <factor> }
 <factor> ::= <unary> { ("*" | "/") <unary> }
 <unary> ::= ( "!" | "-" ) <unary> | <primary>
-<primary> ::= <literal> | ident | "(" <expression> ")" 
+<primary> ::= <literal> | ident | <groupExpr>
+<groupExpr> ::= "(" <expression> ")"
 ```

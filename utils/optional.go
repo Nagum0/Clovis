@@ -1,8 +1,14 @@
 package utils
 
+import "fmt"
+
 type Optional[T any] struct {
 	value  T
 	hasVal bool
+}
+
+func (o Optional[T]) String() string {
+	return fmt.Sprintf("[%v %v]", o.value, o.hasVal)
 }
 
 func (o *Optional[T]) HasVal() bool {

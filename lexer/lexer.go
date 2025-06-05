@@ -67,6 +67,7 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '=' {
 			l.consume()
 			if l.peek() == '=' {
+				l.consume()
 				l.emitToken(EQ, l.col - 2)
 			} else {
 				l.emitToken(ASSIGN, l.col - 1)
@@ -74,6 +75,7 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '!' {
 			l.consume()
 			if l.peek() == '=' {
+				l.consume()
 				l.emitToken(NEQ, l.col - 2)
 			} else {
 				l.emitToken(NOT, l.col - 1)
