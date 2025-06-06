@@ -38,6 +38,7 @@ func main() {
 	}
 
 	fmt.Printf("Stmts: %v Errs: %v\n", len(parser.Stmts), len(parser.Errors))
+
 	logFile, err := os.Create("log.txt")
 	if err != nil {
 		fmt.Println(err)

@@ -71,7 +71,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	if p.match(lexer.UINT) || p.match(lexer.BOOL) {
 		return p.parseVarDecl()
 	} else if p.match(lexer.IDENT) {
-		p.parseVarDefinition()
+		return p.parseVarDefinition()
 	} else if p.match(lexer.OPEN_CURLY) {
 		p.parseBlockStmt()
 	} else if p.match(lexer.IF) {
@@ -85,8 +85,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	return nil, nil
 }
 
-// <varDecl> ::= ( "uint" | "bool" ) ident ";" | 
-//               ( "uint" | "bool" ) ident "=" <expression> ";"
+// <varDecl> ::= ( "uint" | "bool" ) ident ( ";" | "=" <expression> ";" )
 func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	varDeclStmt := &VarDeclStmt{}
 	varTypeToken := p.consume()
@@ -124,8 +123,37 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	return varDeclStmt, nil
 }
 
-func (p *Parser) parseVarDefinition() {
+// <varDefinition> ::= ident "=" <expression> ";"
+func (p *Parser) parseVarDefinition() (Statement, error) {
+	ident := p.consume()
 
+	if !p.match(lexer.ASSIGN) {
+		err := NewParserError(
+			p.peek(),
+			"Expected '=' after variable identifier",
+		)
+		return nil, err
+	}
+
+	p.consume() // consume '='
+
+	exprVal, err := p.parseExpression()
+	if err != nil {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("At variable definition\n\t%v", err.Error()),
+		)
+		return nil, e
+	}
+
+	p.consume() // consume ';'
+
+	varDefStmt := VarDefinitionStmt{
+		Ident: ident,
+		Value: exprVal,
+	}
+	
+	return &varDefStmt, nil
 }
 
 func (p *Parser) parseBlockStmt() {

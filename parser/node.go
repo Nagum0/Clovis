@@ -3,6 +3,7 @@ package parser
 import (
 	"clovis/codegen"
 	"clovis/lexer"
+	"clovis/semantics"
 	"clovis/utils"
 	"fmt"
 	"strings"
@@ -21,16 +22,20 @@ const (
 
 // Anything that implements this interface can be used as a statement in the language.
 type Statement interface {
+	Semantics(s *semantics.SemanticChecker) error
 	EmitCode(e *codegen.Emitter) error
 	Print(indent int) string
 }
 
 // Variable declaration statement.
-// <varDecl> ::= ( "uint" | "bool" ) ident ";" | ( "uint" | "bool" ) ident "=" <expression> ";"
 type VarDeclStmt struct {
 	VarType lexer.TokenType
 	Ident	lexer.Token
 	Value	utils.Optional[Expression]
+}
+
+func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
+	return nil
 }
 
 func (s VarDeclStmt) EmitCode(e *codegen.Emitter) error {
@@ -49,9 +54,31 @@ func (s VarDeclStmt) Print(indent int) string {
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }
 
+// A variable definition statement.
+type VarDefinitionStmt struct {
+	Ident lexer.Token
+	Value Expression
+}
+
+func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
+	return nil
+}
+
+func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) error {
+	return nil
+}
+
+func (stmt VarDefinitionStmt) Print(indent int) string {
+	result := fmt.Sprintf("VarDefinitionStmt\n%v{\n", indentStr(indent))
+	result += fmt.Sprintf("%vIdent: %v\n", indentStr(indent + 1), stmt.Ident)
+	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), stmt.Value.Print(indent + 1))
+	return fmt.Sprintf("%v%v\n}", indentStr(indent), result)
+}
+
 // Anything that implements this interface is an expression in the language.
 type Expression interface {
 	ExprType() Type
+	Semantics(s *semantics.SemanticChecker) error
 	EmitCode(e *codegen.Emitter) error
 	Print(indent int) string
 }
@@ -66,6 +93,10 @@ type BinaryExpression struct {
 
 func (exp BinaryExpression) ExprType() Type {
 	return exp.Type
+}
+
+func (expr *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
 }
 
 func (exp BinaryExpression) EmitCode(e *codegen.Emitter) error {
@@ -92,6 +123,10 @@ func (exp UnaryExpression) ExprType() Type {
 	return exp.Type
 }
 
+func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
+}
+
 func (exp UnaryExpression) EmitCode(e *codegen.Emitter) error {
 	return nil
 }
@@ -112,6 +147,10 @@ type LiteralExpression struct {
 
 func (exp LiteralExpression) ExprType() Type {
 	return exp.Type
+}
+
+func (exp *LiteralExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
 }
 
 func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
@@ -135,6 +174,10 @@ func (exp IdentExpression) ExprType() Type {
 	return exp.Type
 }
 
+func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
+}
+
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
 	return nil
 }
@@ -154,6 +197,10 @@ type GroupExpression struct {
 
 func (exp GroupExpression) ExprType() Type {
 	return exp.Type
+}
+
+func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
 }
 
 func (exp GroupExpression) EmitCode(e *codegen.Emitter) error {
