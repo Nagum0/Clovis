@@ -52,6 +52,6 @@ func NewToken(tokenType TokenType, value string, line int, col int) *Token {
 	}
 }
 
-func (t *Token) String() string {
+func (t Token) String() string {
 	return fmt.Sprintf("%v %v Line: %v Col: %v", t.Type, t.Value, t.Line, t.Col)
 }
