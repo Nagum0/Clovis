@@ -3,6 +3,7 @@ package main
 import (
 	"clovis/lexer"
 	"clovis/parser"
+	"clovis/semantics"
 	"fmt"
 	"os"
 )
@@ -15,12 +16,14 @@ func main() {
 		os.Exit(1)
 	}
 	
+	// -- INPUT
 	input, err := os.ReadFile(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 
+	// -- LEXING
 	lexer := lexer.NewLexer(string(input))
 	err = lexer.Lex()
 	if err != nil {
@@ -29,6 +32,7 @@ func main() {
 		}
 	}
 	
+	// -- PARSING
 	parser := parser.NewParser(lexer.Tokens)
 	err = parser.Parse()
 	if err != nil {
@@ -37,15 +41,20 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Stmts: %v Errs: %v\n", len(parser.Stmts), len(parser.Errors))
-
 	logFile, err := os.Create("log.txt")
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer logFile.Close()
 
+	// for _, stmt := range parser.Stmts {
+	// 	logFile.WriteString(fmt.Sprintf("%v\n\n", stmt.Print(0)))
+	// }
+
+	// -- SEMANTIC ANALYSIS
+	semantics := semantics.SemanticChecker{}
+
 	for _, stmt := range parser.Stmts {
-		logFile.WriteString(fmt.Sprintf("%v\n\n", stmt.Print(0)))
+		stmt.Semantics(&semantics)
 	}
 }

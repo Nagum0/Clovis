@@ -89,7 +89,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	varDeclStmt := &VarDeclStmt{}
 	varTypeToken := p.consume()
-	varDeclStmt.VarType = varTypeToken.Type
+	varDeclStmt.VarType = p.getType(varTypeToken.Type)
 
 	if p.match(lexer.IDENT) {
 		varDeclStmt.Ident = p.consume()
@@ -302,7 +302,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 func (p *Parser) parsePrimary() (Expression, error) {
 	if p.matchAny(lexer.UINT_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
 		litExpr := &LiteralExpression{
-			Type: UNKNOWN,
+			Type: p.getType(p.peek().Type),
 			Value: p.consume(),
 		}
 		return litExpr, nil
@@ -386,4 +386,17 @@ func (p *Parser) synchronize() {
 		p.consume()
 	}
 	p.consume()
+}
+
+func (p *Parser) getType(tokenType lexer.TokenType) Type {
+	switch tokenType {
+	case lexer.UINT:
+		return UINT
+	case lexer.TRUE_LIT:
+		fallthrough
+	case lexer.FALSE_LIT:
+		return BOOL
+	}
+
+	return UNKNOWN
 }

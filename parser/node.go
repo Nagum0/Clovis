@@ -13,6 +13,7 @@ func indentStr(n int) string {
 	return strings.Repeat("  ", n)
 }
 
+// Represents a type for semantic analysis.
 type Type string
 const (
 	UNKNOWN = "UNKNOWN"
@@ -20,21 +21,45 @@ const (
 	BOOL = "BOOL"
 )
 
-// Anything that implements this interface can be used as a statement in the language.
+// This interface represents a statement in the language
+// and holds the needed functions for semantic analysis and code generation.
 type Statement interface {
+	// This checks whether a statement is semntically correct.
+	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
+
+	// Using codegen.Emitter this emits the assembly code for the statement.
 	EmitCode(e *codegen.Emitter) error
+
+	// Pretty prints the statement.
 	Print(indent int) string
 }
 
 // Variable declaration statement.
 type VarDeclStmt struct {
-	VarType lexer.TokenType
+	// The declared variables type.
+	VarType Type
+	// The variable's identifier.
 	Ident	lexer.Token
+	// An optional initializer value.
+	// Can be any type of expression.
 	Value	utils.Optional[Expression]
 }
 
 func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
+	if stmt.Value.HasVal() {
+		err := stmt.Value.Value().Semantics(s)
+		if err != nil {
+			// TODO: add semantic error
+		}
+	}
+
+	if stmt.VarType != stmt.Value.Value().ExprType() {
+		// TODO: add semantic error
+	}
+
+	// TODO: add to symbol table (check for redifinitions)
+
 	return nil
 }
 
@@ -56,7 +81,9 @@ func (s VarDeclStmt) Print(indent int) string {
 
 // A variable definition statement.
 type VarDefinitionStmt struct {
+	// The variable's identifier.
 	Ident lexer.Token
+	// The value we want to set. Can be any expression.
 	Value Expression
 }
 
@@ -75,11 +102,19 @@ func (stmt VarDefinitionStmt) Print(indent int) string {
 	return fmt.Sprintf("%v%v\n}", indentStr(indent), result)
 }
 
-// Anything that implements this interface is an expression in the language.
+// This interface represents an expression in the language.
+// and holds the needed functions for semantic analysis and code generation.
+// All expressions must have a type that can be check with the ExprType() function.
 type Expression interface {
 	ExprType() Type
+	// This checks whether the expression is semantically correct.
+	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
+
+	// Using codegen.Emitter this emits the assembly code for the expression.
 	EmitCode(e *codegen.Emitter) error
+
+	// Pretty prints the expression.
 	Print(indent int) string
 }
 
@@ -112,7 +147,7 @@ func (exp BinaryExpression) Print(indent int) string {
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }
 
-// A unary expression holds a right value and an operator.
+// A unary expression holds a unary operator and a right value.
 type UnaryExpression struct {
 	Type  Type
 	Op    lexer.TokenType
@@ -124,6 +159,16 @@ func (exp UnaryExpression) ExprType() Type {
 }
 
 func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	switch {
+	case exp.Right.ExprType() == BOOL && exp.Op == lexer.NOT:
+		fallthrough
+	case exp.Right.ExprType() == UINT && exp.Op == lexer.MINUS:
+		exp.Type = exp.Right.ExprType()
+		break
+	default:
+		// TODO: add semantic error (incorrect operation)
+	}
+
 	return nil
 }
 
