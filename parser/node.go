@@ -13,14 +13,6 @@ func indentStr(n int) string {
 	return strings.Repeat("  ", n)
 }
 
-// Represents a type for semantic analysis.
-type Type string
-const (
-	UNKNOWN = "UNKNOWN"
-	UINT = "UINT"
-	BOOL = "BOOL"
-)
-
 // This interface represents a statement in the language
 // and holds the needed functions for semantic analysis and code generation.
 type Statement interface {
@@ -38,7 +30,7 @@ type Statement interface {
 // Variable declaration statement.
 type VarDeclStmt struct {
 	// The declared variables type.
-	VarType Type
+	VarType semantics.Type
 	// The variable's identifier.
 	Ident	lexer.Token
 	// An optional initializer value.
@@ -106,7 +98,7 @@ func (stmt VarDefinitionStmt) Print(indent int) string {
 // and holds the needed functions for semantic analysis and code generation.
 // All expressions must have a type that can be check with the ExprType() function.
 type Expression interface {
-	ExprType() Type
+	ExprType() semantics.Type
 	// This checks whether the expression is semantically correct.
 	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
@@ -120,13 +112,13 @@ type Expression interface {
 
 // A binary expression holds a left value and a right value and an operator.
 type BinaryExpression struct {
-	Type  Type
+	Type  semantics.Type
 	Left  Expression
 	Op	  lexer.TokenType
 	Right Expression
 }
 
-func (exp BinaryExpression) ExprType() Type {
+func (exp BinaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
@@ -149,20 +141,20 @@ func (exp BinaryExpression) Print(indent int) string {
 
 // A unary expression holds a unary operator and a right value.
 type UnaryExpression struct {
-	Type  Type
+	Type  semantics.Type
 	Op    lexer.TokenType
 	Right Expression
 }
 
-func (exp UnaryExpression) ExprType() Type {
+func (exp UnaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
 func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	switch {
-	case exp.Right.ExprType() == BOOL && exp.Op == lexer.NOT:
+	case exp.Right.ExprType() == semantics.BOOL && exp.Op == lexer.NOT:
 		fallthrough
-	case exp.Right.ExprType() == UINT && exp.Op == lexer.MINUS:
+	case exp.Right.ExprType() == semantics.UINT && exp.Op == lexer.MINUS:
 		exp.Type = exp.Right.ExprType()
 		break
 	default:
@@ -186,11 +178,11 @@ func (exp UnaryExpression) Print(indent int) string {
 
 // A literal expression holds a literal.
 type LiteralExpression struct {
-	Type  Type
+	Type  semantics.Type
 	Value lexer.Token
 }
 
-func (exp LiteralExpression) ExprType() Type {
+func (exp LiteralExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
@@ -211,11 +203,11 @@ func (exp LiteralExpression) Print(indent int) string {
 
 // A identifier expression holds an identifier's token.
 type IdentExpression struct {
-	Type  Type
+	Type  semantics.Type
 	Ident lexer.Token
 }
 
-func (exp IdentExpression) ExprType() Type {
+func (exp IdentExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
@@ -236,11 +228,11 @@ func (exp IdentExpression) Print(indent int) string {
 
 // A group expression holds an internal expression.
 type GroupExpression struct {
-	Type Type
+	Type semantics.Type
 	Expr Expression
 }
 
-func (exp GroupExpression) ExprType() Type {
+func (exp GroupExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 

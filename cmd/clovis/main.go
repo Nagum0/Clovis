@@ -55,6 +55,8 @@ func main() {
 	semantics := semantics.SemanticChecker{}
 
 	for _, stmt := range parser.Stmts {
-		stmt.Semantics(&semantics)
+		if err := stmt.Semantics(&semantics); err != nil {
+			fmt.Println(err)
+		}
 	}
 }

@@ -1,5 +1,7 @@
 package utils
 
+import "fmt"
+
 type StackUnderflow struct {}
 
 func (s StackUnderflow) Error() string {
@@ -34,8 +36,27 @@ func (s *Stack[T]) Pop() (T, error) {
 	return top, nil
 }
 
+func (s Stack[T]) Top() (T, error) {
+	if s.Size == 0 {
+		var e T
+		return e, &StackUnderflow{}
+	}
+
+	return s.data[len(s.data) - 1], nil
+}	
+
 func (s *Stack[T]) Data() []T {
 	copied := make([]T, len(s.data))
 	copy(copied, s.data)
 	return copied
+}
+
+func (s Stack[T]) String() string {
+	result := ""
+	
+	for _, element := range s.data {
+		result += fmt.Sprintf("[ %v ]", element)	
+	}
+
+	return result
 }

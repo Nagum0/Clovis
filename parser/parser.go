@@ -2,6 +2,7 @@ package parser
 
 import (
 	"clovis/lexer"
+	"clovis/semantics"
 	"fmt"
 )
 
@@ -192,7 +193,7 @@ func (p *Parser) parseEquality() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Left: left,
 			Op: op,
 			Right: right,
@@ -217,7 +218,7 @@ func (p *Parser) parseComparison() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Left: left,
 			Op: op,
 			Right: right,
@@ -242,7 +243,7 @@ func (p *Parser) parseTerm() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Left: left,
 			Op: op,
 			Right: right,
@@ -267,7 +268,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Left: left,
 			Op: op,
 			Right: right,
@@ -287,7 +288,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 		}
 
 		un := &UnaryExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Op: op,
 			Right: right,
 		}
@@ -308,7 +309,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		return litExpr, nil
 	} else if p.match(lexer.IDENT) {
 		identExpr := &IdentExpression{
-			Type: UNKNOWN,
+			Type: semantics.UNKNOWN,
 			Ident: p.consume(),
 		}
 		return identExpr, nil
@@ -326,7 +327,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 // <groupExpr> ::= "(" <expression> ")"
 func (p *Parser) parseGroupExpr() (Expression, error) {
 	groupExpr := &GroupExpression{
-		Type: UNKNOWN,
+		Type: semantics.UNKNOWN,
 	}
 
 	p.consume()
@@ -388,15 +389,15 @@ func (p *Parser) synchronize() {
 	p.consume()
 }
 
-func (p *Parser) getType(tokenType lexer.TokenType) Type {
+func (p *Parser) getType(tokenType lexer.TokenType) semantics.Type {
 	switch tokenType {
 	case lexer.UINT:
-		return UINT
+		return semantics.UINT
 	case lexer.TRUE_LIT:
 		fallthrough
 	case lexer.FALSE_LIT:
-		return BOOL
+		return semantics.BOOL
 	}
 
-	return UNKNOWN
+	return semantics.UNKNOWN
 }
