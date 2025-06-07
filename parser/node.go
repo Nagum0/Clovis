@@ -261,6 +261,7 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
+	exp.Type = symbol.Type
 	exp.Symbol = *symbol
 
 	return nil
