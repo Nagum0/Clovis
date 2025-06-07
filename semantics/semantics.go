@@ -49,6 +49,13 @@ type Symbol struct {
 	Token  lexer.Token
 }
 
+func (s Symbol) String() string {
+	return fmt.Sprintf(
+		"ident: %v, type: %v, stack_offset: %v, size: %v",
+		s.Ident, s.Type, s.Offset, s.Size,
+	)
+}
+
 // The SemanticChecker is used to analyze the statements and expressions
 // to ensure their correctness.
 type SemanticChecker struct {
@@ -56,6 +63,27 @@ type SemanticChecker struct {
 	symbolTable     utils.Stack[Symbol]
 	blockIndexTable utils.Stack[int]
 	nextAddr		int
+}
+
+func NewSemanticChecker() *SemanticChecker {
+	s := SemanticChecker{}
+	s.PushBlock()
+	return &s
+}
+
+func (s SemanticChecker) String() string {
+	return fmt.Sprintf(
+		"SymbolTable:\n%v\nBlokcIndexTable:\n%v\nnextAddr: %v\n",
+		s.symbolTable,
+		s.blockIndexTable,
+		s.nextAddr,
+	)
+}
+
+func (s *SemanticChecker) AddError(msg string, token lexer.Token) error {
+	err := NewSemanticError(msg, token)
+	s.Errors = append(s.Errors, err)
+	return err
 }
 
 func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.Token) error {
@@ -73,7 +101,7 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 		Ident: ident,
 		Type: symbolType,
 		Token: token,
-		Offset: s.nextAddr,
+		Offset: s.nextAddr + symbolSize,
 		Size: symbolSize,
 	}
 	s.nextAddr += symbolSize
@@ -82,8 +110,13 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 	return nil
 }
 
+func (s *SemanticChecker) TopSymbol() (Symbol, error) {
+	return s.symbolTable.Top()
+}
+
+
 func (s *SemanticChecker) PushBlock() {
-	blockStartIndex := s.symbolTable.Size - 1
+	blockStartIndex := s.symbolTable.Size
 	s.blockIndexTable.Push(blockStartIndex)
 }
 
@@ -94,9 +127,26 @@ func (s *SemanticChecker) PopBlock() {
 
 	topBlockIndex, _ := s.blockIndexTable.Pop()
 	symbolTableData := s.blockIndexTable.Data()
-	for i := len(symbolTableData) - 1; i > topBlockIndex; i-- {
+	for i := len(symbolTableData) - 1; i >= topBlockIndex; i-- {
 		s.symbolTable.Pop()
 	}
+}
+
+func (s SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
+	symbolTableData := s.symbolTable.Data()
+	for i := len(symbolTableData) - 1; i >= 0; i-- {
+		symbol := symbolTableData[i]
+		if symbol.Ident == ident.Value {
+			return &symbol, nil
+		}
+	}
+	
+	err := NewSemanticError(
+		fmt.Sprintf("Undeclared symbol '%v'", ident.Value),
+		ident,
+	)
+
+	return nil, err
 }
 
 func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
@@ -106,7 +156,7 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	}
 	
 	symbolTableData := s.symbolTable.Data()
-	for i := len(symbolTableData) - 1; i > topBlockIndex; i-- {
+	for i := len(symbolTableData) - 1; i >= topBlockIndex; i-- {
 		symbol := symbolTableData[i]
 		if symbol.Ident == ident {
 			return true
@@ -115,3 +165,14 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	
 	return false
 }
+
+func align16(x int) int {
+    remainder := x % 16
+
+    if remainder == 0 {
+        return x
+    }
+
+    return x + (16 - remainder)
+}
+

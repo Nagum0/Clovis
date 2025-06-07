@@ -9,6 +9,8 @@ import (
 )
 
 func main() {
+	errOccured := false
+
 	args := os.Args[1:]
 
 	if len(args) < 1 {
@@ -36,27 +38,43 @@ func main() {
 	parser := parser.NewParser(lexer.Tokens)
 	err = parser.Parse()
 	if err != nil {
+		errOccured = true
 		for _, err = range parser.Errors {
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	}
 
-	logFile, err := os.Create("log.txt")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer logFile.Close()
-
-	// for _, stmt := range parser.Stmts {
-	// 	logFile.WriteString(fmt.Sprintf("%v\n\n", stmt.Print(0)))
-	// }
-
-	// -- SEMANTIC ANALYSIS
-	semantics := semantics.SemanticChecker{}
+	parserLogFile, err := os.Create("plog.txt")
+	defer parserLogFile.Close()
 
 	for _, stmt := range parser.Stmts {
-		if err := stmt.Semantics(&semantics); err != nil {
-			fmt.Println(err)
+		parserLogFile.WriteString(fmt.Sprintf("%v\n\n", stmt.Print(0)))
+	}
+
+	// -- SEMANTIC ANALYSIS
+	semantics := semantics.NewSemanticChecker()
+
+	semanticsLogFile, err := os.Create("slog.txt")
+	defer semanticsLogFile.Close()
+
+	for _, stmt := range parser.Stmts {
+		err := stmt.Semantics(semantics)
+		if err != nil {
+			errOccured = true
+			semanticsLogFile.WriteString(err.Error())
+			fmt.Println(err.Error())
+		} else {
+			log := fmt.Sprintf(
+				"-----------------------------------------------------\n\n%v\n\n%v\n-----------------------------------------------------", 
+				stmt.Print(0), 
+				semantics,
+			)
+			semanticsLogFile.WriteString(log)
+			fmt.Println(log)
 		}
+	}
+
+	if errOccured {
+		os.Exit(1)
 	}
 }

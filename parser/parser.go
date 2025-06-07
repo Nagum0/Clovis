@@ -186,7 +186,7 @@ func (p *Parser) parseEquality() (Expression, error) {
 	}
 	
 	if p.matchAny(lexer.EQ, lexer.NEQ) {
-		op := p.consume().Type
+		op := p.consume()
 		right, err := p.parseComparison()
 		if err != nil {
 			return nil, err
@@ -211,7 +211,7 @@ func (p *Parser) parseComparison() (Expression, error) {
 	}
 
 	if p.matchAny(lexer.LESS_THAN, lexer.LESS_EQ_THAN, lexer.GREATER_THAN, lexer.GREATER_EQ_THAN) {
-		op := p.consume().Type
+		op := p.consume()
 		right, err := p.parseTerm()
 		if err != nil {
 			return nil, err
@@ -236,7 +236,7 @@ func (p *Parser) parseTerm() (Expression, error) {
 	}
 
 	if p.matchAny(lexer.PLUS, lexer.MINUS) {
-		op := p.consume().Type
+		op := p.consume()
 		right, err := p.parseFactor()
 		if err != nil {
 			return nil, err
@@ -261,7 +261,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 	}
 
 	if p.matchAny(lexer.STAR, lexer.F_SLASH) {
-		op := p.consume().Type
+		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {
 			return nil, err
@@ -281,7 +281,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 // <unary> ::= ( "!" | "-" ) <unary> | <primary>
 func (p *Parser) parseUnary() (Expression, error) {
 	if p.matchAny(lexer.NOT, lexer.MINUS) {
-		op := p.consume().Type
+		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {
 			return nil, err
@@ -392,7 +392,11 @@ func (p *Parser) synchronize() {
 func (p *Parser) getType(tokenType lexer.TokenType) semantics.Type {
 	switch tokenType {
 	case lexer.UINT:
+		fallthrough
+	case lexer.UINT_LIT:
 		return semantics.UINT
+	case lexer.BOOL:
+		fallthrough
 	case lexer.TRUE_LIT:
 		fallthrough
 	case lexer.FALSE_LIT:

@@ -55,7 +55,7 @@ func (s Stack[T]) String() string {
 	result := ""
 	
 	for _, element := range s.data {
-		result += fmt.Sprintf("[ %v ]", element)	
+		result += fmt.Sprintf("[ %v ]\n", element)	
 	}
 
 	return result

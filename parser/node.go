@@ -36,21 +36,33 @@ type VarDeclStmt struct {
 	// An optional initializer value.
 	// Can be any type of expression.
 	Value	utils.Optional[Expression]
+	// Used by the code emitter to get the symbol data
+	Symbol  semantics.Symbol
 }
 
 func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 	if stmt.Value.HasVal() {
-		err := stmt.Value.Value().Semantics(s)
-		if err != nil {
-			// TODO: add semantic error
+		if err := stmt.Value.Value().Semantics(s); err != nil {
+			return err
+		}
+
+		if stmt.VarType != stmt.Value.Value().ExprType() {
+			return s.AddError(
+				fmt.Sprintf(
+					"Declared type %v and initialized value type %v do not match",
+					stmt.VarType,
+					stmt.Value.Value().ExprType(),
+				),
+				stmt.Ident,
+			)
 		}
 	}
 
-	if stmt.VarType != stmt.Value.Value().ExprType() {
-		// TODO: add semantic error
+	if err := s.PushSymbol(stmt.Ident.Value, stmt.VarType, stmt.Ident); err != nil {
+		return err
 	}
 
-	// TODO: add to symbol table (check for redifinitions)
+	stmt.Symbol, _ = s.TopSymbol()
 
 	return nil
 }
@@ -114,7 +126,7 @@ type Expression interface {
 type BinaryExpression struct {
 	Type  semantics.Type
 	Left  Expression
-	Op	  lexer.TokenType
+	Op	  lexer.Token
 	Right Expression
 }
 
@@ -122,7 +134,29 @@ func (exp BinaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
-func (expr *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
+func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Left.Semantics(s); err != nil {
+		return err
+	}
+
+	if err := exp.Right.Semantics(s); err != nil {
+		return err
+	}
+
+	if exp.Left.ExprType() != exp.Right.ExprType() {
+		return s.AddError(
+			fmt.Sprintf(
+				"Cannot use operator '%v' between types %v and %v", 
+				exp.Op.Value,
+				exp.Left.ExprType(), 
+				exp.Right.ExprType(),
+			),
+			exp.Op,
+		)
+	} else {
+		exp.Type = exp.Left.ExprType()
+	}
+
 	return nil
 }
 
@@ -142,7 +176,7 @@ func (exp BinaryExpression) Print(indent int) string {
 // A unary expression holds a unary operator and a right value.
 type UnaryExpression struct {
 	Type  semantics.Type
-	Op    lexer.TokenType
+	Op    lexer.Token
 	Right Expression
 }
 
@@ -151,14 +185,22 @@ func (exp UnaryExpression) ExprType() semantics.Type {
 }
 
 func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Right.Semantics(s); err != nil {
+		return err
+	}
+	
+	// Check correct usage of operation
 	switch {
-	case exp.Right.ExprType() == semantics.BOOL && exp.Op == lexer.NOT:
+	case exp.Right.ExprType() == semantics.BOOL && exp.Op.Type == lexer.NOT:
 		fallthrough
-	case exp.Right.ExprType() == semantics.UINT && exp.Op == lexer.MINUS:
+	case exp.Right.ExprType() == semantics.UINT && exp.Op.Type == lexer.MINUS:
 		exp.Type = exp.Right.ExprType()
 		break
 	default:
-		// TODO: add semantic error (incorrect operation)
+		return s.AddError(
+			fmt.Sprintf("Cannot use operator '%v' on type %v", exp.Op.Value, exp.Right.ExprType()),
+			exp.Op,
+		)
 	}
 
 	return nil
@@ -187,7 +229,7 @@ func (exp LiteralExpression) ExprType() semantics.Type {
 }
 
 func (exp *LiteralExpression) Semantics(s *semantics.SemanticChecker) error {
-	return nil
+	return nil // No semantics needed
 }
 
 func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
@@ -203,8 +245,10 @@ func (exp LiteralExpression) Print(indent int) string {
 
 // A identifier expression holds an identifier's token.
 type IdentExpression struct {
-	Type  semantics.Type
-	Ident lexer.Token
+	Type   semantics.Type
+	Ident  lexer.Token
+	// Used during code generation for symbol data
+	Symbol semantics.Symbol
 }
 
 func (exp IdentExpression) ExprType() semantics.Type {
@@ -212,6 +256,13 @@ func (exp IdentExpression) ExprType() semantics.Type {
 }
 
 func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
+	symbol, err := s.GetSymbol(exp.Ident)
+	if err != nil {
+		return err
+	}
+
+	exp.Symbol = *symbol
+
 	return nil
 }
 
@@ -237,6 +288,12 @@ func (exp GroupExpression) ExprType() semantics.Type {
 }
 
 func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Expr.Semantics(s); err != nil {
+		return err
+	} else {
+		exp.Type = exp.Expr.ExprType()
+	}
+
 	return nil
 }
 
