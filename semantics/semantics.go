@@ -41,6 +41,30 @@ func (t Type) Size() int {
 	return 0
 }
 
+// Returns the size specifier of the type in x86_64 asm.
+func (t Type) ASMSize() string {
+	switch t {
+	case BOOL:
+		return "BYTE"
+	case UINT:
+		return "QWORD"
+	}
+
+	return ""
+}
+
+// Returns which subregister of rax the type's value can be found in.
+func (t Type) ASMExprReg() string {
+	switch t {
+	case BOOL:
+		return "al"
+	case UINT:
+		return "rax"
+	}
+
+	return "rax"
+}
+
 type Symbol struct {
 	Ident  string
 	Type   Type

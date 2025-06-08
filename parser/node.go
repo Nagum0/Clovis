@@ -68,6 +68,22 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (s VarDeclStmt) EmitCode(e *codegen.Emitter) error {
+	b := strings.Builder{}
+	
+	fmt.Fprintf(
+		&b,
+		"; VarDeclStmt: %v type = %v\n",
+		s.Ident.Value, s.VarType,
+	)
+	fmt.Fprintf(&b, "sub rsp, %v\n", s.VarType.Size())
+	
+	if s.Value.HasVal() {
+		s.Value.Value().EmitCode(e)
+		fmt.Fprintf(&b, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.ASMExprReg())
+	}
+
+	e.WriteString(b.String())
+
 	return nil
 }
 
@@ -121,6 +137,21 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) error {
+	b := strings.Builder{}
+	
+	stmt.Value.EmitCode(e)
+	fmt.Fprintf(
+		&b, 
+		"; VarDefinitionStmt: %v type = %v offset = %v\n",
+		stmt.Ident.Value, stmt.Symbol.Type, stmt.Symbol.Offset,
+	)
+	fmt.Fprintf(
+		&b, 
+		"mov %v [rbp - %v], %v\n",
+		stmt.Symbol.Type.ASMSize(), stmt.Symbol.Offset, stmt.Symbol.Type.ASMExprReg(),
+	)
+	e.WriteString(b.String())
+
 	return nil
 }
 
@@ -136,11 +167,13 @@ func (stmt VarDefinitionStmt) Print(indent int) string {
 // All expressions must have a type that can be check with the ExprType() function.
 type Expression interface {
 	ExprType() semantics.Type
+
 	// This checks whether the expression is semantically correct.
 	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
 
 	// Using codegen.Emitter this emits the assembly code for the expression.
+	// All expressions are evaluated in the rax register.
 	EmitCode(e *codegen.Emitter) error
 
 	// Pretty prints the expression.
@@ -159,6 +192,7 @@ func (exp BinaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
+// TODO: Add type and operation checking for BinaryExpression
 func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Left.Semantics(s); err != nil {
 		return err
@@ -185,7 +219,22 @@ func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
+// TODO: Implelemnt remaining binary operations
+// Binary expressions are evaluates in the rax register.
 func (exp BinaryExpression) EmitCode(e *codegen.Emitter) error {
+	fmt.Fprintf(e, "; BinaryExpression: type = %v op = %v\n", exp.Type, exp.Op.Value)
+	exp.Right.EmitCode(e)
+	e.WriteString("push rax\n")
+	exp.Left.EmitCode(e)
+	e.WriteString("pop rbx\n")
+
+	binOp := codegen.ASMBinaryOp(exp.Op)
+	if binOp == "add" || binOp == "sub" {
+		fmt.Fprintf(e, "%v rax, rbx\n", binOp)
+	} else if binOp == "mul" || binOp == "div" {
+		fmt.Fprintf(e, "%v rbx\n", binOp)
+	}
+
 	return nil
 }
 
@@ -231,6 +280,8 @@ func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
+// TODO: UnaryExpression.EmitCode
+// Unary expressions are evaluated in the rax register.
 func (exp UnaryExpression) EmitCode(e *codegen.Emitter) error {
 	return nil
 }
@@ -257,7 +308,25 @@ func (exp *LiteralExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil // No semantics needed
 }
 
+// Literal expressions are evaluated in the rax register.
 func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
+	value := exp.Value.Value
+	if exp.Type == semantics.BOOL {
+		switch exp.Value.Value {
+		case "true":
+			value = "1"
+			break
+		case "false":
+			value = "0"
+			break
+		}
+	}
+	
+	b := strings.Builder{}
+	fmt.Fprintf(&b, "; LiteralExpression: type = %v value = %v\n", exp.Type, value)
+	fmt.Fprintf(&b, "mov rax, %v\n", value)
+	e.WriteString(b.String())
+
 	return nil
 }
 
@@ -292,7 +361,21 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
+// Identifier expressions are evaluated in the rax register.
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
+	b := strings.Builder{}
+	fmt.Fprintf(
+		&b,
+		"; IdentExpression: %v type = %v offset = %v\n",
+		exp.Ident.Value, exp.Type, exp.Symbol.Offset,
+	)
+	fmt.Fprintf(
+		&b,
+		"mov rax, %v [rbp - %v]",
+		exp.Type.ASMSize(), exp.Symbol.Offset,
+	)
+	e.WriteString(b.String())
+
 	return nil
 }
 
@@ -324,7 +407,7 @@ func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (exp GroupExpression) EmitCode(e *codegen.Emitter) error {
-	return nil
+	return exp.Expr.EmitCode(e)
 }
 
 func (exp GroupExpression) Print(indent int) string {

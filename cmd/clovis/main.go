@@ -97,14 +97,14 @@ func main() {
 	asmFile.WriteString(emitter.Code)
 
 	nasmCmd := exec.Command("nasm", "-f", "elf64", "out.asm", "-o", "out.o")
-	if err := nasmCmd.Run(); err != nil {
-		fmt.Println(err.Error())
+	if output, err := nasmCmd.Output(); err != nil {
+		fmt.Printf("Failed during assembling:\n\t%v\n", string(output))
 		os.Exit(1)
 	}
 
 	ldCmd := exec.Command("ld", "out.o", "-o", "out")
-	if err := ldCmd.Run(); err != nil {
-		fmt.Println(err.Error())
+	if output, err := ldCmd.Output(); err != nil {
+		fmt.Printf("Failed during linking:\n\t%v\n", string(output))
 		os.Exit(1)
 	}
 }
