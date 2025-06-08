@@ -86,12 +86,37 @@ func (s VarDeclStmt) Print(indent int) string {
 // A variable definition statement.
 type VarDefinitionStmt struct {
 	// The variable's identifier.
-	Ident lexer.Token
+	Ident  lexer.Token
 	// The value we want to set. Can be any expression.
-	Value Expression
+	Value  Expression
+	// Used by the code emitter to get the symbol data
+	Symbol semantics.Symbol
 }
 
 func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
+	if err := stmt.Value.Semantics(s); err != nil {
+		return err
+	}
+
+	symbol, err := s.GetSymbol(stmt.Ident)
+	if err != nil {
+		return err
+	}
+
+	if symbol.Type != stmt.Value.ExprType() {
+		return s.AddError(
+			fmt.Sprintf(
+				"Cannot set variable '%v' of type %v to type %v", 
+				stmt.Ident.Value, 
+				symbol.Type, 
+				stmt.Value.ExprType(),
+			),
+			stmt.Ident,
+		)
+	}
+
+	stmt.Symbol = *symbol
+
 	return nil
 }
 

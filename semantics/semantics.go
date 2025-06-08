@@ -132,7 +132,7 @@ func (s *SemanticChecker) PopBlock() {
 	}
 }
 
-func (s SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
+func (s *SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
 	symbolTableData := s.symbolTable.Data()
 	for i := len(symbolTableData) - 1; i >= 0; i-- {
 		symbol := symbolTableData[i]
@@ -145,6 +145,7 @@ func (s SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
 		fmt.Sprintf("Undeclared symbol '%v'", ident.Value),
 		ident,
 	)
+	s.Errors = append(s.Errors, err)
 
 	return nil, err
 }
