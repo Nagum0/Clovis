@@ -1,11 +1,13 @@
 package main
 
 import (
+	"clovis/codegen"
 	"clovis/lexer"
 	"clovis/parser"
 	"clovis/semantics"
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 func main() {
@@ -75,6 +77,34 @@ func main() {
 	}
 
 	if errOccured {
+		os.Exit(1)
+	}
+
+	// -- CODE GENERATION
+	emitter := codegen.NewEmitter()
+	for _, stmt := range parser.Stmts {
+		stmt.EmitCode(emitter)
+	}
+	emitter.End()
+
+	// -- COMPILE & LINK
+	asmFile, err := os.Create("out.asm")
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	defer asmFile.Close()
+	asmFile.WriteString(emitter.Code)
+
+	nasmCmd := exec.Command("nasm", "-f", "elf64", "out.asm", "-o", "out.o")
+	if err := nasmCmd.Run(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	ldCmd := exec.Command("ld", "out.o", "-o", "out")
+	if err := ldCmd.Run(); err != nil {
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 }
