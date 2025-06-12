@@ -31,11 +31,14 @@ type Statement interface {
 type VarDeclStmt struct {
 	// The declared variables type.
 	VarType semantics.Type
+
 	// The variable's identifier.
 	Ident	lexer.Token
+
 	// An optional initializer value.
 	// Can be any type of expression.
 	Value	utils.Optional[Expression]
+
 	// Used by the code emitter to get the symbol data
 	Symbol  semantics.Symbol
 }
@@ -68,21 +71,17 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (s VarDeclStmt) EmitCode(e *codegen.Emitter) error {
-	b := strings.Builder{}
-	
 	fmt.Fprintf(
-		&b,
+		e,
 		"; VarDeclStmt: %v type = %v\n",
 		s.Ident.Value, s.VarType,
 	)
-	fmt.Fprintf(&b, "sub rsp, %v\n", s.VarType.Size())
+	fmt.Fprintf(e, "sub rsp, %v\n", s.VarType.Size())
 	
 	if s.Value.HasVal() {
 		s.Value.Value().EmitCode(e)
-		fmt.Fprintf(&b, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.ASMExprReg())
+		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.ASMExprReg())
 	}
-
-	e.WriteString(b.String())
 
 	return nil
 }
@@ -103,8 +102,10 @@ func (s VarDeclStmt) Print(indent int) string {
 type VarDefinitionStmt struct {
 	// The variable's identifier.
 	Ident  lexer.Token
+
 	// The value we want to set. Can be any expression.
 	Value  Expression
+
 	// Used by the code emitter to get the symbol data
 	Symbol semantics.Symbol
 }
@@ -137,20 +138,17 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) error {
-	b := strings.Builder{}
-	
 	stmt.Value.EmitCode(e)
 	fmt.Fprintf(
-		&b, 
+		e, 
 		"; VarDefinitionStmt: %v type = %v offset = %v\n",
 		stmt.Ident.Value, stmt.Symbol.Type, stmt.Symbol.Offset,
 	)
 	fmt.Fprintf(
-		&b, 
+		e, 
 		"mov %v [rbp - %v], %v\n",
 		stmt.Symbol.Type.ASMSize(), stmt.Symbol.Offset, stmt.Symbol.Type.ASMExprReg(),
 	)
-	e.WriteString(b.String())
 
 	return nil
 }
@@ -192,7 +190,6 @@ func (exp BinaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
-// TODO: Add type and operation checking for BinaryExpression
 func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Left.Semantics(s); err != nil {
 		return err
@@ -212,15 +209,28 @@ func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 			),
 			exp.Op,
 		)
+	}
+	
+	leftType := exp.Left.ExprType()
+	opType := semantics.OperatorType(exp.Op)
+
+	if (leftType == semantics.BOOL && opType == semantics.UINT) {
+		return s.AddError(
+			fmt.Sprintf(
+				"Cannot use operator '%v' on type %v", 
+				exp.Op.Value,
+				leftType, 
+			),
+			exp.Op,
+		)
 	} else {
-		exp.Type = exp.Left.ExprType()
+		exp.Type = semantics.OperatorType(exp.Op)
 	}
 
 	return nil
 }
 
-// TODO: Implelemnt remaining binary operations
-// Binary expressions are evaluates in the rax register.
+// Binary expressions are evaluated in the rax register.
 func (exp BinaryExpression) EmitCode(e *codegen.Emitter) error {
 	fmt.Fprintf(e, "; BinaryExpression: type = %v op = %v\n", exp.Type, exp.Op.Value)
 	exp.Right.EmitCode(e)
@@ -233,6 +243,9 @@ func (exp BinaryExpression) EmitCode(e *codegen.Emitter) error {
 		fmt.Fprintf(e, "%v rax, rbx\n", binOp)
 	} else if binOp == "mul" || binOp == "div" {
 		fmt.Fprintf(e, "%v rbx\n", binOp)
+	} else if exp.Type == semantics.BOOL {
+		fmt.Fprintf(e, "cmp rax, rbx\n")
+		fmt.Fprintf(e, "%v al\n", binOp)
 	}
 
 	return nil
@@ -322,10 +335,8 @@ func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
 		}
 	}
 	
-	b := strings.Builder{}
-	fmt.Fprintf(&b, "; LiteralExpression: type = %v value = %v\n", exp.Type, value)
-	fmt.Fprintf(&b, "mov rax, %v\n", value)
-	e.WriteString(b.String())
+	fmt.Fprintf(e, "; LiteralExpression: type = %v value = %v\n", exp.Type, value)
+	fmt.Fprintf(e, "mov rax, %v\n", value)
 
 	return nil
 }
@@ -363,18 +374,16 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 
 // Identifier expressions are evaluated in the rax register.
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
-	b := strings.Builder{}
 	fmt.Fprintf(
-		&b,
+		e,
 		"; IdentExpression: %v type = %v offset = %v\n",
 		exp.Ident.Value, exp.Type, exp.Symbol.Offset,
 	)
 	fmt.Fprintf(
-		&b,
+		e,
 		"mov rax, %v [rbp - %v]",
 		exp.Type.ASMSize(), exp.Symbol.Offset,
 	)
-	e.WriteString(b.String())
 
 	return nil
 }

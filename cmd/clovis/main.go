@@ -72,7 +72,7 @@ func main() {
 				semantics,
 			)
 			semanticsLogFile.WriteString(log)
-			fmt.Println(log)
+			// fmt.Println(log)
 		}
 	}
 

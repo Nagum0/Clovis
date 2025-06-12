@@ -191,6 +191,33 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	return false
 }
 
+// Returns the semantic type of an operator.
+func OperatorType(op lexer.Token) Type {
+	switch op.Value {
+	case "+":
+		fallthrough
+	case "-":
+		fallthrough
+	case "*":
+		fallthrough
+	case "/":
+		return UINT
+	case "==":
+		fallthrough
+	case "<":
+		fallthrough
+	case "<=":
+		fallthrough
+	case ">":
+		fallthrough
+	case ">=":
+		return BOOL
+	}
+
+
+	return UNKNOWN
+}
+
 func align16(x int) int {
     remainder := x % 16
 

@@ -97,7 +97,7 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	} else {
 		err := NewParserError(
 			p.consume(),
-			fmt.Sprintf("Expected and identifier after %v", varTypeToken.Type),
+			fmt.Sprintf("Expected an identifier after %v", varTypeToken.Type),
 		)
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (p *Parser) parseComparison() (Expression, error) {
 		return nil, err
 	}
 
-	if p.matchAny(lexer.LESS_THAN, lexer.LESS_EQ_THAN, lexer.GREATER_THAN, lexer.GREATER_EQ_THAN) {
+	for p.matchAny(lexer.LESS_THAN, lexer.LESS_EQ_THAN, lexer.GREATER_THAN, lexer.GREATER_EQ_THAN) {
 		op := p.consume()
 		right, err := p.parseTerm()
 		if err != nil {
@@ -235,7 +235,7 @@ func (p *Parser) parseTerm() (Expression, error) {
 		return nil, err
 	}
 
-	if p.matchAny(lexer.PLUS, lexer.MINUS) {
+	for p.matchAny(lexer.PLUS, lexer.MINUS) {
 		op := p.consume()
 		right, err := p.parseFactor()
 		if err != nil {
@@ -260,7 +260,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 		return nil, err
 	}
 
-	if p.matchAny(lexer.STAR, lexer.F_SLASH) {
+	for p.matchAny(lexer.STAR, lexer.F_SLASH) {
 		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {

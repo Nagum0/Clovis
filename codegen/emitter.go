@@ -50,6 +50,16 @@ func ASMBinaryOp(op lexer.Token) string {
 		return "mul"
 	case "/":
 		return "div"
+	case "==":
+		return "sete"
+	case "<":
+		return "setl"
+	case "<=":
+		return "setle"
+	case ">":
+		return "setg"
+	case ">=":
+		return "setge"
 	}
 
 	return ""
