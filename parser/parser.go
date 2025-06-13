@@ -74,7 +74,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	} else if p.match(lexer.IDENT) {
 		return p.parseVarDefinition()
 	} else if p.match(lexer.OPEN_CURLY) {
-		p.parseBlockStmt()
+		return p.parseBlockStmt()
 	} else if p.match(lexer.IF) {
 		p.parseIfStmt()
 	} else if p.match(lexer.WHILE) {
@@ -83,7 +83,12 @@ func (p *Parser) parseStatement() (Statement, error) {
 		p.parseForStmt()
 	}
 
-	return nil, nil
+	err := NewParserError(
+		p.peek(),
+		fmt.Sprintf("Unexpected token %v", p.peek().Value),
+	)
+
+	return nil, err
 }
 
 // <varDecl> ::= ( "uint" | "bool" ) ident ( ";" | "=" <expression> ";" )
@@ -157,8 +162,37 @@ func (p *Parser) parseVarDefinition() (Statement, error) {
 	return &varDefStmt, nil
 }
 
-func (p *Parser) parseBlockStmt() {
+// <blockStmt> ::= "{" <statements> "}"
+func (p *Parser) parseBlockStmt() (Statement, error) {
+	p.consume() // '{'
 
+	stmts := []Statement{}
+
+	for p.idx < len(p.tokens) && !p.isAtEnd() && !p.match(lexer.CLOSE_CURLY) {
+		stmt, err := p.parseStatement()
+		if err != nil {
+			p.Errors = append(p.Errors, err)
+			p.synchronize()
+			continue
+		}
+		stmts = append(stmts, stmt)
+	}
+
+	blockStmt := BlockStmt{
+		Statements: stmts,
+	}
+	
+	if !p.match(lexer.CLOSE_CURLY) {
+		err := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected '}' but found '%v'", p.peek().Value),
+		)
+		return nil, err
+	} else {
+		p.consume() // '}'
+	}
+
+	return &blockStmt, nil
 }
 
 func (p *Parser) parseIfStmt() {
@@ -383,9 +417,10 @@ func (p *Parser) isAtEnd() bool {
 }
 
 func (p *Parser) synchronize() {
-	for !p.isAtEnd() && p.tokens[p.idx].Type != lexer.SEMI {
+	for !p.isAtEnd() && p.matchAny(lexer.SEMI, lexer.CLOSE_CURLY, lexer.EOF) {
 		p.consume()
 	}
+
 	p.consume()
 }
 

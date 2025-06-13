@@ -19,10 +19,8 @@ type Statement interface {
 	// This checks whether a statement is semntically correct.
 	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
-
 	// Using codegen.Emitter this emits the assembly code for the statement.
 	EmitCode(e *codegen.Emitter) error
-
 	// Pretty prints the statement.
 	Print(indent int) string
 }
@@ -31,10 +29,8 @@ type Statement interface {
 type VarDeclStmt struct {
 	// The declared variables type.
 	VarType semantics.Type
-
 	// The variable's identifier.
 	Ident	lexer.Token
-
 	// An optional initializer value.
 	// Can be any type of expression.
 	Value	utils.Optional[Expression]
@@ -102,10 +98,8 @@ func (s VarDeclStmt) Print(indent int) string {
 type VarDefinitionStmt struct {
 	// The variable's identifier.
 	Ident  lexer.Token
-
 	// The value we want to set. Can be any expression.
 	Value  Expression
-
 	// Used by the code emitter to get the symbol data
 	Symbol semantics.Symbol
 }
@@ -158,6 +152,35 @@ func (stmt VarDefinitionStmt) Print(indent int) string {
 	result += fmt.Sprintf("%vIdent: %v\n", indentStr(indent + 1), stmt.Ident)
 	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), stmt.Value.Print(indent + 1))
 	return fmt.Sprintf("%v%v\n}", indentStr(indent), result)
+}
+
+// A block statement holds a group of statements.
+type BlockStmt struct {
+	Statements []Statement
+	// The size of the symbols declared inside this block.
+	BlockSize  int
+}
+
+func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
+	return nil
+}
+
+func (stmt BlockStmt) EmitCode(e *codegen.Emitter) error {
+	return nil
+}
+
+func (stmt BlockStmt) Print(indent int) string {
+	b := strings.Builder{}
+	fmt.Fprintf(&b, "\n%vBlockStmt\n%v{\n", indentStr(indent), indentStr(indent))
+	fmt.Fprintf(&b, "%vBlockSize: %v\n", indentStr(indent + 1), stmt.BlockSize)
+	fmt.Fprintf(&b, "%vStatements: \n", indentStr(indent + 1))
+
+	for _, s := range stmt.Statements {
+		fmt.Fprintf(&b, "%v,", s.Print(indent + 1))
+	}
+
+	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
+	return b.String()
 }
 
 // This interface represents an expression in the language.
@@ -381,7 +404,7 @@ func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
 	)
 	fmt.Fprintf(
 		e,
-		"mov rax, %v [rbp - %v]",
+		"mov rax, %v [rbp - %v]\n",
 		exp.Type.ASMSize(), exp.Symbol.Offset,
 	)
 

@@ -97,7 +97,7 @@ func NewSemanticChecker() *SemanticChecker {
 
 func (s SemanticChecker) String() string {
 	return fmt.Sprintf(
-		"SymbolTable:\n%v\nBlokcIndexTable:\n%v\nnextAddr: %v\n",
+		"SymbolTable:\n%v\nBlockIndexTable:\n%v\nnextAddr: %v\n",
 		s.symbolTable,
 		s.blockIndexTable,
 		s.nextAddr,
