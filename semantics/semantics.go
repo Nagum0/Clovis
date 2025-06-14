@@ -91,7 +91,6 @@ type SemanticChecker struct {
 
 func NewSemanticChecker() *SemanticChecker {
 	s := SemanticChecker{}
-	s.PushBlock()
 	return &s
 }
 
@@ -144,16 +143,22 @@ func (s *SemanticChecker) PushBlock() {
 	s.blockIndexTable.Push(blockStartIndex)
 }
 
-func (s *SemanticChecker) PopBlock() {
+// Pops a block off the symbol table.
+// Returns the size of the popped block.
+func (s *SemanticChecker) PopBlock() int {
 	if s.blockIndexTable.Size == 0 {
-		return
+		return 0
+	}
+	
+	size := 0
+	topBlockIndex, _ := s.blockIndexTable.Pop()
+	symbolTableData := s.symbolTable.Data()
+	for i := len(symbolTableData) - 1; i >= topBlockIndex; i-- {
+		symbol, _ := s.symbolTable.Pop()
+		size += symbol.Size
 	}
 
-	topBlockIndex, _ := s.blockIndexTable.Pop()
-	symbolTableData := s.blockIndexTable.Data()
-	for i := len(symbolTableData) - 1; i >= topBlockIndex; i-- {
-		s.symbolTable.Pop()
-	}
+	return size
 }
 
 func (s *SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {

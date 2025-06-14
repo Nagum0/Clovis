@@ -162,13 +162,28 @@ type BlockStmt struct {
 }
 
 func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
+	s.PushBlock()
+	
+	for _, innerStmt := range stmt.Statements {
+		innerStmt.Semantics(s)
+	}
+
+	stmt.BlockSize = s.PopBlock()
 	return nil
 }
 
 func (stmt BlockStmt) EmitCode(e *codegen.Emitter) error {
+	fmt.Fprintf(e, "; BlockStmt: Size = %v", stmt.BlockSize)
+	for _, innerStmt := range stmt.Statements {
+		innerStmt.EmitCode(e)
+	}
+
+	fmt.Fprintf(e, "add rsp, %v\n", stmt.BlockSize)
+
 	return nil
 }
 
+// TODO: Add symbol data info for block statement printing
 func (stmt BlockStmt) Print(indent int) string {
 	b := strings.Builder{}
 	fmt.Fprintf(&b, "\n%vBlockStmt\n%v{\n", indentStr(indent), indentStr(indent))
