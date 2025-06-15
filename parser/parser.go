@@ -83,14 +83,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 		p.parseForStmt()
 	} else if p.match(lexer.ASSERT) {
 		return p.parseAssert()
+	} else {
+		return p.parseExpressionStmt()
 	}
 
-	err := NewParserError(
-		p.peek(),
-		fmt.Sprintf("Unexpected token %v", p.peek().Value),
-	)
-
-	return nil, err
+	return nil, nil
 }
 
 // <varDecl> ::= ( "uint" | "bool" ) ident ( ";" | "=" <expression> ";" )
@@ -233,6 +230,27 @@ func (p *Parser) parseAssert() (Statement, error) {
 	p.consume() // ';'
 
 	return &stmt, nil
+}
+
+func (p *Parser) parseExpressionStmt() (Statement, error) {
+	exprStmt := ExpressionStmt{}
+
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	exprStmt.Expr = expr
+
+	if !p.match(lexer.SEMI) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ';' found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	p.consume() // ';'
+
+	return &exprStmt, nil
 }
 
 // <expression> ::= <equality>

@@ -222,7 +222,6 @@ func (stmt *AssertStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-// TODO: Implement label generation.
 func (stmt AssertStmt) EmitCode(e *codegen.Emitter) error {
 	fmt.Fprintf(e, "; AssertStmt\n")
 	stmt.Expr.EmitCode(e)
@@ -238,6 +237,29 @@ func (stmt AssertStmt) Print(indent int) string {
 	b := strings.Builder{}
 	
 	fmt.Fprintf(&b, "\n%vAssertStmt\n%v{\n", indentStr(indent), indentStr(indent))
+	fmt.Fprintf(&b, "%v\n", stmt.Expr.Print(indent + 1))
+	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
+
+	return b.String()
+}
+
+// Expression statement.
+type ExpressionStmt struct {
+	Expr Expression
+}
+
+func (stmt *ExpressionStmt) Semantics(s *semantics.SemanticChecker) error {
+	return stmt.Expr.Semantics(s)
+}
+
+func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) error {
+	return stmt.Expr.EmitCode(e)
+}
+
+func (stmt ExpressionStmt) Print(indent int) string {
+	b := strings.Builder{}
+
+	fmt.Fprintf(&b, "\n%vExpressionStmt\n%v{\n", indentStr(indent), indentStr(indent))
 	fmt.Fprintf(&b, "%v\n", stmt.Expr.Print(indent + 1))
 	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
 

@@ -10,7 +10,8 @@
                 <ifStmt> |
                 <whileStmt> |
                 <forStmt> |
-                <asser>
+                <assert> |
+                <expressionStmt>
 <varDecl> ::= ( "uint" | "bool" ) ident ";" | 
               ( "uint" | "bool" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
@@ -20,6 +21,7 @@
 <forStmt> ::= "for" ident "=" <expression> ".." <expression> <statement> |
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
+<expressionStmt> ::= <expression> ";"
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
