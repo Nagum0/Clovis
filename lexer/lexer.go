@@ -169,6 +169,9 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "false":
 		l.emitToken(FALSE_LIT, startCol)
 		return true
+	case "assert":
+		l.emitToken(ASSERT, startCol)
+		return true
 	}
 
 	return false

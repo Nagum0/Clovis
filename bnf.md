@@ -9,7 +9,8 @@
                 <blockStmt> |
                 <ifStmt> |
                 <whileStmt> |
-                <forStmt>
+                <forStmt> |
+                <asser>
 <varDecl> ::= ( "uint" | "bool" ) ident ";" | 
               ( "uint" | "bool" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
@@ -18,6 +19,7 @@
 <whileStmt> ::= "while" <expression> <statement>
 <forStmt> ::= "for" ident "=" <expression> ".." <expression> <statement> |
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
+<assert> ::= "assert" <expression> ";"
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
@@ -25,6 +27,8 @@
 <term> ::= <factor> { ("+" | "-") <factor> }
 <factor> ::= <unary> { ("*" | "/") <unary> }
 <unary> ::= ( "!" | "-" ) <unary> | <primary>
-<primary> ::= <literal> | ident | <groupExpr>
+<primary> ::= <literal> | ident | <groupExpr> | <functionCall>
 <groupExpr> ::= "(" <expression> ")"
+<functionCall> ::= ident "(" [ <param> { "," <param> } ] ")"
+<param> ::= <expression>
 ```

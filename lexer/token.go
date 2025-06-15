@@ -12,6 +12,7 @@ const (
 	FOR = "FOR"
 	UINT = "UINT"
 	BOOL = "BOOL"
+	ASSERT = "ASSERT"
 
 	UINT_LIT = "UINT_LIT"
 	TRUE_LIT = "TRUE_LIT"

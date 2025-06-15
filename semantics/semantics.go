@@ -209,6 +209,8 @@ func OperatorType(op lexer.Token) Type {
 		return UINT
 	case "==":
 		fallthrough
+	case "!=":
+		fallthrough
 	case "<":
 		fallthrough
 	case "<=":

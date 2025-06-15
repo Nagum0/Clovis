@@ -81,6 +81,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 		p.parseWhileStmt()
 	} else if p.match(lexer.FOR) {
 		p.parseForStmt()
+	} else if p.match(lexer.ASSERT) {
+		return p.parseAssert()
 	}
 
 	err := NewParserError(
@@ -205,6 +207,32 @@ func (p *Parser) parseWhileStmt() {
 
 func (p *Parser) parseForStmt() {
 
+}
+
+func (p *Parser) parseAssert() (Statement, error) {
+	stmt := AssertStmt{}
+	stmt.AssertToken = p.consume()
+
+	expr, err := p.parseExpression()
+	if err != nil {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("At assertion %v", err.Error()),
+		)
+		return nil, e
+	}
+	stmt.Expr = expr
+
+	if !p.match(lexer.SEMI) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ';' found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	p.consume() // ';'
+
+	return &stmt, nil
 }
 
 // <expression> ::= <equality>

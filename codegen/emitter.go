@@ -3,11 +3,13 @@ package codegen
 import (
 	"clovis/lexer"
 	"strings"
+	"fmt"
 )
 
 // Generates x86_64 assembly code.
 type Emitter struct {
-	Code string
+	Code 	   string
+	LabelCount int
 }
 
 func NewEmitter() *Emitter {
@@ -52,6 +54,8 @@ func ASMBinaryOp(op lexer.Token) string {
 		return "div"
 	case "==":
 		return "sete"
+	case "!=":
+		return "setne"
 	case "<":
 		return "setl"
 	case "<=":
@@ -64,3 +68,9 @@ func ASMBinaryOp(op lexer.Token) string {
 
 	return ""
 }
+
+func (e *Emitter) NextLabel() string {
+	e.LabelCount++
+	return fmt.Sprintf(".L%02v", e.LabelCount)
+}
+

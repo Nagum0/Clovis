@@ -184,8 +184,10 @@ func (stmt BlockStmt) EmitCode(e *codegen.Emitter) error {
 }
 
 // TODO: Add symbol data info for block statement printing
+// FIXME: Fix BlockStmt pretty printing.
 func (stmt BlockStmt) Print(indent int) string {
 	b := strings.Builder{}
+
 	fmt.Fprintf(&b, "\n%vBlockStmt\n%v{\n", indentStr(indent), indentStr(indent))
 	fmt.Fprintf(&b, "%vBlockSize: %v\n", indentStr(indent + 1), stmt.BlockSize)
 	fmt.Fprintf(&b, "%vStatements: \n", indentStr(indent + 1))
@@ -198,20 +200,61 @@ func (stmt BlockStmt) Print(indent int) string {
 	return b.String()
 }
 
+// Assert statement.
+type AssertStmt struct {
+	// The assert token. Used for error handling information.
+	AssertToken lexer.Token
+	Expr        Expression
+}
+
+func (stmt *AssertStmt) Semantics(s *semantics.SemanticChecker) error {
+	if err := stmt.Expr.Semantics(s); err != nil {
+		return err
+	}
+
+	if stmt.Expr.ExprType() != semantics.BOOL {
+		return s.AddError(
+			"Assert statement expects a boolean expression",
+			stmt.AssertToken,
+		)
+	}
+
+	return nil
+}
+
+// TODO: Implement label generation.
+func (stmt AssertStmt) EmitCode(e *codegen.Emitter) error {
+	fmt.Fprintf(e, "; AssertStmt\n")
+	stmt.Expr.EmitCode(e)
+	fmt.Fprintf(e, "cmp al, 1\n")
+	endLabel := e.NextLabel()
+	fmt.Fprintf(e, "je %v\n", endLabel)
+	fmt.Fprintf(e, "mov rax, 60\nmov rdi, 1\nsyscall\n")
+	fmt.Fprintf(e, "%v:\n", endLabel)
+	return nil
+}
+
+func (stmt AssertStmt) Print(indent int) string {
+	b := strings.Builder{}
+	
+	fmt.Fprintf(&b, "\n%vAssertStmt\n%v{\n", indentStr(indent), indentStr(indent))
+	fmt.Fprintf(&b, "%v\n", stmt.Expr.Print(indent + 1))
+	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
+
+	return b.String()
+}
+
 // This interface represents an expression in the language.
 // and holds the needed functions for semantic analysis and code generation.
 // All expressions must have a type that can be check with the ExprType() function.
 type Expression interface {
 	ExprType() semantics.Type
-
 	// This checks whether the expression is semantically correct.
 	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
-
 	// Using codegen.Emitter this emits the assembly code for the expression.
 	// All expressions are evaluated in the rax register.
 	EmitCode(e *codegen.Emitter) error
-
 	// Pretty prints the expression.
 	Print(indent int) string
 }
@@ -419,8 +462,8 @@ func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
 	)
 	fmt.Fprintf(
 		e,
-		"mov rax, %v [rbp - %v]\n",
-		exp.Type.ASMSize(), exp.Symbol.Offset,
+		"xor rax, rax\nmov %v, %v [rbp - %v]\n",
+		exp.Type.ASMExprReg(), exp.Type.ASMSize(), exp.Symbol.Offset,
 	)
 
 	return nil
