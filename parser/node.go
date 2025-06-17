@@ -34,7 +34,6 @@ type VarDeclStmt struct {
 	// An optional initializer value.
 	// Can be any type of expression.
 	Value	utils.Optional[Expression]
-
 	// Used by the code emitter to get the symbol data
 	Symbol  semantics.Symbol
 }
@@ -197,6 +196,58 @@ func (stmt BlockStmt) Print(indent int) string {
 	}
 
 	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
+	return b.String()
+}
+
+// If statement.
+type IfStmt struct {
+	// The if token. Used for error handling.
+	IfToken   lexer.Token
+	Condition Expression
+	Stmt	  Statement
+}
+
+func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
+	if err := stmt.Condition.Semantics(s); err != nil {
+		return err
+	}
+
+	if stmt.Condition.ExprType() != semantics.BOOL {
+		return s.AddError(
+			fmt.Sprintf(
+				"If statement condition must be of type BOOL received %v",
+				stmt.Condition.ExprType(),
+			),
+			stmt.IfToken,
+		)
+	}
+
+	if err := stmt.Stmt.Semantics(s); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (stmt IfStmt) EmitCode(e *codegen.Emitter) error {
+	fmt.Fprintf(e, "; IfStmt\n")
+	stmt.Condition.EmitCode(e)
+	fmt.Fprintf(e, "cmp al, 1\n")
+	endLabel := e.NextLabel()
+	fmt.Fprintf(e, "jne %v\n", endLabel)
+	stmt.Stmt.EmitCode(e)
+	fmt.Fprintf(e, "%v:\n", endLabel)
+	return nil
+}
+
+func (stmt IfStmt) Print(indent int) string {
+	b := strings.Builder{}
+
+	fmt.Fprintf(&b, "\n%vIfStmt\n%v{", indentStr(indent), indentStr(indent))
+	fmt.Fprintf(&b, "%v\n", stmt.Condition.Print(indent + 1))
+	fmt.Fprintf(&b, "%v\n", stmt.Stmt.Print(indent + 1))
+	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
+
 	return b.String()
 }
 

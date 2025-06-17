@@ -76,7 +76,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	} else if p.match(lexer.OPEN_CURLY) {
 		return p.parseBlockStmt()
 	} else if p.match(lexer.IF) {
-		p.parseIfStmt()
+		return p.parseIfStmt()
 	} else if p.match(lexer.WHILE) {
 		p.parseWhileStmt()
 	} else if p.match(lexer.FOR) {
@@ -194,8 +194,24 @@ func (p *Parser) parseBlockStmt() (Statement, error) {
 	return &blockStmt, nil
 }
 
-func (p *Parser) parseIfStmt() {
+// <ifStmt> ::= "if" <expression> <statement>
+func (p *Parser) parseIfStmt() (Statement, error) {
+	ifStmt := IfStmt{}
+	ifStmt.IfToken = p.consume()
+	
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	ifStmt.Condition = expr
 
+	stmt, err := p.parseStatement()
+	if err != nil {
+		return nil, err
+	}
+	ifStmt.Stmt = stmt
+	
+	return &ifStmt, nil
 }
 
 func (p *Parser) parseWhileStmt() {
