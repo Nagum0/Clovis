@@ -245,11 +245,15 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) error {
 	falseLabel := e.NextLabel()
 	fmt.Fprintf(e, "jne %v\n", falseLabel)
 	stmt.Stmt.EmitCode(e)
+	endLabel := e.NextLabel()
+	fmt.Fprintf(e, "jmp %v\n", endLabel)
 	fmt.Fprintf(e, "%v:\n", falseLabel)
 	
 	if stmt.ElseStmt.HasVal() {
 		stmt.ElseStmt.Value().EmitCode(e)
 	}
+
+	fmt.Fprintf(e, "%v:\n", endLabel)
 
 	return nil
 }
