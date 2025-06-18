@@ -205,6 +205,7 @@ type IfStmt struct {
 	IfToken   lexer.Token
 	Condition Expression
 	Stmt	  Statement
+	ElseStmt  utils.Optional[Statement]
 }
 
 func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
@@ -226,6 +227,14 @@ func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
+	if !stmt.ElseStmt.HasVal() {
+		return nil
+	}
+
+	if err := stmt.ElseStmt.Value().Semantics(s); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -233,10 +242,15 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) error {
 	fmt.Fprintf(e, "; IfStmt\n")
 	stmt.Condition.EmitCode(e)
 	fmt.Fprintf(e, "cmp al, 1\n")
-	endLabel := e.NextLabel()
-	fmt.Fprintf(e, "jne %v\n", endLabel)
+	falseLabel := e.NextLabel()
+	fmt.Fprintf(e, "jne %v\n", falseLabel)
 	stmt.Stmt.EmitCode(e)
-	fmt.Fprintf(e, "%v:\n", endLabel)
+	fmt.Fprintf(e, "%v:\n", falseLabel)
+	
+	if stmt.ElseStmt.HasVal() {
+		stmt.ElseStmt.Value().EmitCode(e)
+	}
+
 	return nil
 }
 

@@ -8,6 +8,7 @@ const (
 	SEMI = "SEMI"
 	
 	IF = "IF"
+	ELSE = "ELSE"
 	WHILE = "WHILE"
 	FOR = "FOR"
 	UINT = "UINT"

@@ -16,7 +16,7 @@
               ( "uint" | "bool" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
-<ifStmt> ::= "if" <expression> <statement>
+<ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
 <whileStmt> ::= "while" <expression> <statement>
 <forStmt> ::= "for" ident "=" <expression> ".." <expression> <statement> |
               "for" ident "=" <expression> ".." <expression> <expression> <statement>

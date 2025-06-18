@@ -194,7 +194,7 @@ func (p *Parser) parseBlockStmt() (Statement, error) {
 	return &blockStmt, nil
 }
 
-// <ifStmt> ::= "if" <expression> <statement>
+// <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
 func (p *Parser) parseIfStmt() (Statement, error) {
 	ifStmt := IfStmt{}
 	ifStmt.IfToken = p.consume()
@@ -210,6 +210,15 @@ func (p *Parser) parseIfStmt() (Statement, error) {
 		return nil, err
 	}
 	ifStmt.Stmt = stmt
+
+	if p.match(lexer.ELSE) {
+		p.consume() // 'else'
+		elseStmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		ifStmt.ElseStmt.SetVal(elseStmt)
+	}
 	
 	return &ifStmt, nil
 }

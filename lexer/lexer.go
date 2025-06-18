@@ -151,6 +151,9 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "if":
 		l.emitToken(IF, startCol)
 		return true
+	case "else":
+		l.emitToken(ELSE, startCol)
+		return true
 	case "while":
 		l.emitToken(WHILE, startCol)
 		return true
