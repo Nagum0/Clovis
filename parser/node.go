@@ -20,7 +20,7 @@ type Statement interface {
 	// Also sets some extra information that is used by the emitter.
 	Semantics(s *semantics.SemanticChecker) error
 	// Using codegen.Emitter this emits the assembly code for the statement.
-	EmitCode(e *codegen.Emitter) error
+	EmitCode(e *codegen.Emitter)
 	// Pretty prints the statement.
 	Print(indent int) string
 }
@@ -34,7 +34,7 @@ type VarDeclStmt struct {
 	// An optional initializer value.
 	// Can be any type of expression.
 	Value	utils.Optional[Expression]
-	// Used by the code emitter to get the symbol data
+	// Used by the code emitter to get the symbol data.
 	Symbol  semantics.Symbol
 }
 
@@ -44,12 +44,12 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 			return err
 		}
 
-		if stmt.VarType != stmt.Value.Value().ExprType() {
+		if stmt.VarType.TypeID() != stmt.Value.Value().ExprType().TypeID() {
 			return s.AddError(
 				fmt.Sprintf(
 					"Declared type %v and initialized value type %v do not match",
-					stmt.VarType,
-					stmt.Value.Value().ExprType(),
+					stmt.VarType.TypeID(),
+					stmt.Value.Value().ExprType().TypeID(),
 				),
 				stmt.Ident,
 			)
@@ -65,20 +65,18 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (s VarDeclStmt) EmitCode(e *codegen.Emitter) error {
+func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(
 		e,
 		"; VarDeclStmt: %v type = %v\n",
-		s.Ident.Value, s.VarType,
+		s.Ident.Value, s.VarType.TypeID(),
 	)
 	fmt.Fprintf(e, "sub rsp, %v\n", s.VarType.Size())
 	
 	if s.Value.HasVal() {
 		s.Value.Value().EmitCode(e)
-		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.ASMExprReg())
+		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.Register())
 	}
-
-	return nil
 }
 
 func (s VarDeclStmt) Print(indent int) string {
@@ -113,13 +111,13 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
-	if symbol.Type != stmt.Value.ExprType() {
+	if symbol.Type.TypeID() != stmt.Value.ExprType().TypeID() {
 		return s.AddError(
 			fmt.Sprintf(
 				"Cannot set variable '%v' of type %v to type %v", 
 				stmt.Ident.Value, 
-				symbol.Type, 
-				stmt.Value.ExprType(),
+				symbol.Type.TypeID(), 
+				stmt.Value.ExprType().TypeID(),
 			),
 			stmt.Ident,
 		)
@@ -130,20 +128,18 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) error {
+func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 	stmt.Value.EmitCode(e)
 	fmt.Fprintf(
 		e, 
 		"; VarDefinitionStmt: %v type = %v offset = %v\n",
-		stmt.Ident.Value, stmt.Symbol.Type, stmt.Symbol.Offset,
+		stmt.Ident.Value, stmt.Symbol.Type.TypeID(), stmt.Symbol.Offset,
 	)
 	fmt.Fprintf(
 		e, 
 		"mov %v [rbp - %v], %v\n",
-		stmt.Symbol.Type.ASMSize(), stmt.Symbol.Offset, stmt.Symbol.Type.ASMExprReg(),
+		stmt.Symbol.Type.ASMSize(), stmt.Symbol.Offset, stmt.Symbol.Type.Register(),
 	)
-
-	return nil
 }
 
 func (stmt VarDefinitionStmt) Print(indent int) string {
@@ -171,15 +167,13 @@ func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (stmt BlockStmt) EmitCode(e *codegen.Emitter) error {
+func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; BlockStmt: Size = %v", stmt.BlockSize)
 	for _, innerStmt := range stmt.Statements {
 		innerStmt.EmitCode(e)
 	}
 
 	fmt.Fprintf(e, "add rsp, %v\n", stmt.BlockSize)
-
-	return nil
 }
 
 // TODO: Add symbol data info for block statement printing
@@ -213,11 +207,11 @@ func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
-	if stmt.Condition.ExprType() != semantics.BOOL {
+	if stmt.Condition.ExprType().TypeID() != semantics.BOOL {
 		return s.AddError(
 			fmt.Sprintf(
 				"If statement condition must be of type BOOL received %v",
-				stmt.Condition.ExprType(),
+				stmt.Condition.ExprType().TypeID(),
 			),
 			stmt.IfToken,
 		)
@@ -238,7 +232,7 @@ func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (stmt IfStmt) EmitCode(e *codegen.Emitter) error {
+func (stmt IfStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; IfStmt\n")
 	stmt.Condition.EmitCode(e)
 	fmt.Fprintf(e, "cmp al, 1\n")
@@ -254,8 +248,6 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) error {
 	}
 
 	fmt.Fprintf(e, "%v:\n", endLabel)
-
-	return nil
 }
 
 func (stmt IfStmt) Print(indent int) string {
@@ -281,7 +273,7 @@ func (stmt *AssertStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
-	if stmt.Expr.ExprType() != semantics.BOOL {
+	if stmt.Expr.ExprType().TypeID() != semantics.BOOL {
 		return s.AddError(
 			"Assert statement expects a boolean expression",
 			stmt.AssertToken,
@@ -291,7 +283,7 @@ func (stmt *AssertStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (stmt AssertStmt) EmitCode(e *codegen.Emitter) error {
+func (stmt AssertStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; AssertStmt\n")
 	stmt.Expr.EmitCode(e)
 	fmt.Fprintf(e, "cmp al, 1\n")
@@ -299,7 +291,6 @@ func (stmt AssertStmt) EmitCode(e *codegen.Emitter) error {
 	fmt.Fprintf(e, "je %v\n", endLabel)
 	fmt.Fprintf(e, "mov rax, 60\nmov rdi, 1\nsyscall\n")
 	fmt.Fprintf(e, "%v:\n", endLabel)
-	return nil
 }
 
 func (stmt AssertStmt) Print(indent int) string {
@@ -321,8 +312,8 @@ func (stmt *ExpressionStmt) Semantics(s *semantics.SemanticChecker) error {
 	return stmt.Expr.Semantics(s)
 }
 
-func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) error {
-	return stmt.Expr.EmitCode(e)
+func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) {
+	stmt.Expr.EmitCode(e)
 }
 
 func (stmt ExpressionStmt) Print(indent int) string {
@@ -345,7 +336,7 @@ type Expression interface {
 	Semantics(s *semantics.SemanticChecker) error
 	// Using codegen.Emitter this emits the assembly code for the expression.
 	// All expressions are evaluated in the rax register.
-	EmitCode(e *codegen.Emitter) error
+	EmitCode(e *codegen.Emitter)
 	// Pretty prints the expression.
 	Print(indent int) string
 }
@@ -370,57 +361,42 @@ func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Right.Semantics(s); err != nil {
 		return err
 	}
-
-	if exp.Left.ExprType() != exp.Right.ExprType() {
+		
+	l, t := exp.Left.ExprType().CanUseOperator(exp.Op.Value, exp.Right.ExprType())
+	if !l {
 		return s.AddError(
 			fmt.Sprintf(
 				"Cannot use operator '%v' between types %v and %v", 
 				exp.Op.Value,
-				exp.Left.ExprType(), 
-				exp.Right.ExprType(),
+				exp.Left.ExprType().TypeID(), 
+				exp.Right.ExprType().TypeID(),
 			),
 			exp.Op,
 		)
 	}
+	exp.Type = t
 	
-	leftType := exp.Left.ExprType()
-	opType := semantics.OperatorType(exp.Op)
-
-	if (leftType == semantics.BOOL && opType == semantics.UINT) {
-		return s.AddError(
-			fmt.Sprintf(
-				"Cannot use operator '%v' on type %v", 
-				exp.Op.Value,
-				leftType, 
-			),
-			exp.Op,
-		)
-	} else {
-		exp.Type = semantics.OperatorType(exp.Op)
-	}
-
 	return nil
 }
 
 // Binary expressions are evaluated in the rax register.
-func (exp BinaryExpression) EmitCode(e *codegen.Emitter) error {
-	fmt.Fprintf(e, "; BinaryExpression: type = %v op = %v\n", exp.Type, exp.Op.Value)
+func (exp BinaryExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; BinaryExpression: type = %v op = %v\n", exp.Type.TypeID(), exp.Op.Value)
 	exp.Right.EmitCode(e)
 	e.WriteString("push rax\n")
 	exp.Left.EmitCode(e)
 	e.WriteString("pop rbx\n")
-
+	
+	// TODO: Clean up the binary operation logic
 	binOp := codegen.ASMBinaryOp(exp.Op)
 	if binOp == "add" || binOp == "sub" {
 		fmt.Fprintf(e, "%v rax, rbx\n", binOp)
 	} else if binOp == "mul" || binOp == "div" {
 		fmt.Fprintf(e, "%v rbx\n", binOp)
-	} else if exp.Type == semantics.BOOL {
+	} else if exp.Type.TypeID() == semantics.BOOL {
 		fmt.Fprintf(e, "cmp rax, rbx\n")
 		fmt.Fprintf(e, "%v al\n", binOp)
 	}
-
-	return nil
 }
 
 func (exp BinaryExpression) Print(indent int) string {
@@ -443,32 +419,14 @@ func (exp UnaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
+// TODO: UnaryExpression.Semantics
 func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
-	if err := exp.Right.Semantics(s); err != nil {
-		return err
-	}
-	
-	// Check correct usage of operation
-	switch {
-	case exp.Right.ExprType() == semantics.BOOL && exp.Op.Type == lexer.NOT:
-		fallthrough
-	case exp.Right.ExprType() == semantics.UINT && exp.Op.Type == lexer.MINUS:
-		exp.Type = exp.Right.ExprType()
-		break
-	default:
-		return s.AddError(
-			fmt.Sprintf("Cannot use operator '%v' on type %v", exp.Op.Value, exp.Right.ExprType()),
-			exp.Op,
-		)
-	}
-
 	return nil
 }
 
 // TODO: UnaryExpression.EmitCode
-// Unary expressions are evaluated in the rax register.
-func (exp UnaryExpression) EmitCode(e *codegen.Emitter) error {
-	return nil
+func (exp UnaryExpression) EmitCode(e *codegen.Emitter) {
+
 }
 
 func (exp UnaryExpression) Print(indent int) string {
@@ -494,9 +452,9 @@ func (exp *LiteralExpression) Semantics(s *semantics.SemanticChecker) error {
 }
 
 // Literal expressions are evaluated in the rax register.
-func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
+func (exp LiteralExpression) EmitCode(e *codegen.Emitter) {
 	value := exp.Value.Value
-	if exp.Type == semantics.BOOL {
+	if exp.Type.TypeID() == semantics.BOOL {
 		switch exp.Value.Value {
 		case "true":
 			value = "1"
@@ -507,10 +465,8 @@ func (exp LiteralExpression) EmitCode(e *codegen.Emitter) error {
 		}
 	}
 	
-	fmt.Fprintf(e, "; LiteralExpression: type = %v value = %v\n", exp.Type, value)
+	fmt.Fprintf(e, "; LiteralExpression: type = %v value = %v\n", exp.Type.TypeID(), value)
 	fmt.Fprintf(e, "mov rax, %v\n", value)
-
-	return nil
 }
 
 func (exp LiteralExpression) Print(indent int) string {
@@ -524,7 +480,7 @@ func (exp LiteralExpression) Print(indent int) string {
 type IdentExpression struct {
 	Type   semantics.Type
 	Ident  lexer.Token
-	// Used during code generation for symbol data
+	// Used during code generation for symbol data.
 	Symbol semantics.Symbol
 }
 
@@ -545,19 +501,17 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 }
 
 // Identifier expressions are evaluated in the rax register.
-func (exp IdentExpression) EmitCode(e *codegen.Emitter) error {
+func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(
 		e,
 		"; IdentExpression: %v type = %v offset = %v\n",
-		exp.Ident.Value, exp.Type, exp.Symbol.Offset,
+		exp.Ident.Value, exp.Type.TypeID(), exp.Symbol.Offset,
 	)
 	fmt.Fprintf(
 		e,
 		"xor rax, rax\nmov %v, %v [rbp - %v]\n",
-		exp.Type.ASMExprReg(), exp.Type.ASMSize(), exp.Symbol.Offset,
+		exp.Type.Register(), exp.Type.ASMSize(), exp.Symbol.Offset,
 	)
-
-	return nil
 }
 
 func (exp IdentExpression) Print(indent int) string {
@@ -587,8 +541,8 @@ func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-func (exp GroupExpression) EmitCode(e *codegen.Emitter) error {
-	return exp.Expr.EmitCode(e)
+func (exp GroupExpression) EmitCode(e *codegen.Emitter) {
+	exp.Expr.EmitCode(e)
 }
 
 func (exp GroupExpression) Print(indent int) string {

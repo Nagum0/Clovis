@@ -69,7 +69,7 @@ func (p *Parser) parseStatements() []Statement {
 }
 
 func (p *Parser) parseStatement() (Statement, error) {
-	if p.match(lexer.UINT) || p.match(lexer.BOOL) {
+	if p.match(lexer.UINT_64) || p.match(lexer.BOOL) {
 		return p.parseVarDecl()
 	} else if p.match(lexer.IDENT) {
 		return p.parseVarDefinition()
@@ -298,7 +298,7 @@ func (p *Parser) parseEquality() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -323,7 +323,7 @@ func (p *Parser) parseComparison() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -348,7 +348,7 @@ func (p *Parser) parseTerm() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -373,7 +373,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -393,7 +393,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 		}
 
 		un := &UnaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Op: op,
 			Right: right,
 		}
@@ -406,7 +406,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 
 // <primary> ::= <literal> | ident | "(" <expression> ")" 
 func (p *Parser) parsePrimary() (Expression, error) {
-	if p.matchAny(lexer.UINT_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
+	if p.matchAny(lexer.UINT_64_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
 		litExpr := &LiteralExpression{
 			Type: p.getType(p.peek().Type),
 			Value: p.consume(),
@@ -414,7 +414,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		return litExpr, nil
 	} else if p.match(lexer.IDENT) {
 		identExpr := &IdentExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Ident: p.consume(),
 		}
 		return identExpr, nil
@@ -432,7 +432,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 // <groupExpr> ::= "(" <expression> ")"
 func (p *Parser) parseGroupExpr() (Expression, error) {
 	groupExpr := &GroupExpression{
-		Type: semantics.UNKNOWN,
+		Type: semantics.Undefined{},
 	}
 
 	p.consume()
@@ -497,17 +497,17 @@ func (p *Parser) synchronize() {
 
 func (p *Parser) getType(tokenType lexer.TokenType) semantics.Type {
 	switch tokenType {
-	case lexer.UINT:
+	case lexer.UINT_64:
 		fallthrough
-	case lexer.UINT_LIT:
-		return semantics.UINT
+	case lexer.UINT_64_LIT:
+		return semantics.Uint64{}
 	case lexer.BOOL:
 		fallthrough
 	case lexer.TRUE_LIT:
 		fallthrough
 	case lexer.FALSE_LIT:
-		return semantics.BOOL
+		return semantics.Bool{}
 	}
 
-	return semantics.UNKNOWN
+	return semantics.Undefined{}
 }

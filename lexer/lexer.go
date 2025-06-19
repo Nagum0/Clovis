@@ -114,7 +114,7 @@ func (l *Lexer) Lex() error {
 				l.consume()
 			}
 
-			l.emitToken(UINT_LIT, startCol)
+			l.emitToken(UINT_64_LIT, startCol)
 		} else if unicode.IsLetter(l.peek()) || l.peek() == '_' {
 			startCol := l.col
 			l.consume()
@@ -160,8 +160,8 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "for":
 		l.emitToken(FOR, startCol)
 		return true
-	case "uint":
-		l.emitToken(UINT, startCol)
+	case "uint64":
+		l.emitToken(UINT_64, startCol)
 		return true
 	case "bool":
 		l.emitToken(BOOL, startCol)

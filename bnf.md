@@ -11,7 +11,8 @@
                 <whileStmt> |
                 <forStmt> |
                 <assert> |
-                <expressionStmt>
+                <expressionStmt> |
+                <typeDeclaration>
 <varDecl> ::= ( "uint" | "bool" ) ident ";" | 
               ( "uint" | "bool" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
@@ -22,6 +23,7 @@
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
 <expressionStmt> ::= <expression> ";"
+<typeDeclaration> ::= 
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
