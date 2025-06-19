@@ -5,7 +5,9 @@ package semantics
 type TypeID string
 const (
 	UNDEFINED TypeID = "UNDEFINED"
+	UINT_LIT TypeID = "UINT_LIT"
 	UINT64 TypeID = "UINT64"
+	UINT32 TypeID = "UINT32"
 	BOOL TypeID = "BOOL"
 )
 
@@ -27,10 +29,6 @@ type Type interface {
 // This type is used during parsing where the specific type cannot be deduced yet.
 type Undefined struct {}
 
-func (_ Undefined) Name() string {
-	return "uint64"
-}
-
 func (_ Undefined) TypeID() TypeID {
 	return UNDEFINED
 }
@@ -51,12 +49,42 @@ func (_ Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
+// Represents a unsigned integer literal.
+type UintLiteral struct {}
+
+func (_ UintLiteral) TypeID() TypeID {
+	return UINT_LIT
+}
+
+func (_ UintLiteral) Size() int {
+	return 8
+}
+
+func (_ UintLiteral) Register() string {
+	return "rax"
+}
+
+func (_ UintLiteral) ASMSize() string {
+	return "QWORD"
+}
+
+func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
+	if operand.TypeID() != UINT64 {
+		return false, Undefined{}
+	}
+
+	switch op {
+	case "+", "-", "*", "/":
+		return true, UintLiteral{}
+	case "==", "<", ">", "<=", ">=", "!=":
+		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
 // Unsigned 64 bit integer.
 type Uint64 struct {}
-
-func (_ Uint64) Name() string {
-	return "uint64"
-}
 
 func (_ Uint64) TypeID() TypeID {
 	return UINT64
@@ -75,13 +103,47 @@ func (_ Uint64) ASMSize() string {
 }
 
 func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
-	if operand.TypeID() != UINT64 {
+	if operand.TypeID() != UINT64 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
 	}
 
 	switch op {
 	case "+", "-", "*", "/":
 		return true, Uint64{}
+	case "==", "<", ">", "<=", ">=", "!=":
+		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+// Unsigned 64 bit integer.
+type Uint32 struct {}
+
+func (_ Uint32) TypeID() TypeID {
+	return UINT32
+}
+
+func (_ Uint32) Size() int {
+	return 4
+}
+
+func (_ Uint32) Register() string {
+	return "eax"
+}
+
+func (_ Uint32) ASMSize() string {
+	return "DWORD"
+}
+
+func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
+	if operand.TypeID() != UINT32 && operand.TypeID() != UINT_LIT {
+		return false, Undefined{}
+	}
+
+	switch op {
+	case "+", "-", "*", "/":
+		return true, Uint32{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
 	}

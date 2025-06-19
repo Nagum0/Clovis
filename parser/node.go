@@ -43,8 +43,10 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 		if err := stmt.Value.Value().Semantics(s); err != nil {
 			return err
 		}
-
-		if stmt.VarType.TypeID() != stmt.Value.Value().ExprType().TypeID() {
+		
+		// Check type correctness
+		if !(isNumber(stmt.VarType) && isNumber(stmt.Value.Value().ExprType())) && 
+		   !(stmt.VarType.TypeID() == stmt.Value.Value().ExprType().TypeID()) {
 			return s.AddError(
 				fmt.Sprintf(
 					"Declared type %v and initialized value type %v do not match",
@@ -111,7 +113,8 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
-	if symbol.Type.TypeID() != stmt.Value.ExprType().TypeID() {
+	if !(isNumber(symbol.Type) && isNumber(stmt.Value.ExprType())) &&
+	   !(symbol.Type.TypeID() == stmt.Value.ExprType().TypeID()) {
 		return s.AddError(
 			fmt.Sprintf(
 				"Cannot set variable '%v' of type %v to type %v", 
@@ -550,4 +553,21 @@ func (exp GroupExpression) Print(indent int) string {
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
 	result += exp.Expr.Print(indent + 1)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+}
+
+// ---------------------------------------------------
+//                  HELPER FUNCTIONS
+// ---------------------------------------------------
+
+func isNumber(t semantics.Type) bool {
+	switch t.TypeID() {
+	case semantics.UINT64:
+		fallthrough
+	case semantics.UINT32:
+		fallthrough
+	case semantics.UINT_LIT:
+		return true
+	}
+
+	return false
 }

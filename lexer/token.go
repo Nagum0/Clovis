@@ -12,6 +12,7 @@ const (
 	WHILE = "WHILE"
 	FOR = "FOR"
 	UINT_64 = "UINT_64"
+	UINT_32 = "UINT_32"
 	BOOL = "BOOL"
 	ASSERT = "ASSERT"
 

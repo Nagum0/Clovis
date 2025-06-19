@@ -163,6 +163,9 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "uint64":
 		l.emitToken(UINT_64, startCol)
 		return true
+	case "uint32":
+		l.emitToken(UINT_32, startCol)
+		return true
 	case "bool":
 		l.emitToken(BOOL, startCol)
 		return true

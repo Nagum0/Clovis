@@ -22,7 +22,6 @@ func (s *SemanticError) Error() string {
 	return fmt.Sprintf("Semantic error at line %v at col %v\n\t%v", s.token.Line, s.token.Col, s.msg)
 }
 
-
 type Symbol struct {
 	Ident  string
 	Type   Type

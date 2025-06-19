@@ -69,7 +69,7 @@ func (p *Parser) parseStatements() []Statement {
 }
 
 func (p *Parser) parseStatement() (Statement, error) {
-	if p.match(lexer.UINT_64) || p.match(lexer.BOOL) {
+	if p.matchAny(lexer.UINT_64, lexer.UINT_32, lexer.BOOL) {
 		return p.parseVarDecl()
 	} else if p.match(lexer.IDENT) {
 		return p.parseVarDefinition()
@@ -497,10 +497,12 @@ func (p *Parser) synchronize() {
 
 func (p *Parser) getType(tokenType lexer.TokenType) semantics.Type {
 	switch tokenType {
+	case lexer.UINT_32:
+		return semantics.Uint32{}
 	case lexer.UINT_64:
-		fallthrough
-	case lexer.UINT_64_LIT:
 		return semantics.Uint64{}
+	case lexer.UINT_64_LIT:
+		return semantics.UintLiteral{}
 	case lexer.BOOL:
 		fallthrough
 	case lexer.TRUE_LIT:
