@@ -13,6 +13,8 @@ const (
 	FOR = "FOR"
 	UINT_64 = "UINT_64"
 	UINT_32 = "UINT_32"
+	UINT_16 = "UINT_16"
+	UINT_8 = "UINT_8"
 	BOOL = "BOOL"
 	ASSERT = "ASSERT"
 

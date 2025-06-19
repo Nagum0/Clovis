@@ -8,6 +8,8 @@ const (
 	UINT_LIT TypeID = "UINT_LIT"
 	UINT64 TypeID = "UINT64"
 	UINT32 TypeID = "UINT32"
+	UINT16 TypeID = "UINT16"
+	UINT8 TypeID = "UINT8"
 	BOOL TypeID = "BOOL"
 )
 
@@ -144,6 +146,74 @@ func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	switch op {
 	case "+", "-", "*", "/":
 		return true, Uint32{}
+	case "==", "<", ">", "<=", ">=", "!=":
+		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+// Unsigned 16 bit integer.
+type Uint16 struct {}
+
+func (_ Uint16) TypeID() TypeID {
+	return UINT16
+}
+
+func (_ Uint16) Size() int {
+	return 2
+}
+
+func (_ Uint16) Register() string {
+	return "ax"
+}
+
+func (_ Uint16) ASMSize() string {
+	return "WORD"
+}
+
+func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
+	if operand.TypeID() != UINT16 && operand.TypeID() != UINT_LIT {
+		return false, Undefined{}
+	}
+
+	switch op {
+	case "+", "-", "*", "/":
+		return true, Uint16{}
+	case "==", "<", ">", "<=", ">=", "!=":
+		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+// Unsigned 8 bit integer.
+type Uint8 struct {}
+
+func (_ Uint8) TypeID() TypeID {
+	return UINT8
+}
+
+func (_ Uint8) Size() int {
+	return 1
+}
+
+func (_ Uint8) Register() string {
+	return "al"
+}
+
+func (_ Uint8) ASMSize() string {
+	return "BYTE"
+}
+
+func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
+	if operand.TypeID() != UINT8 && operand.TypeID() != UINT_LIT {
+		return false, Undefined{}
+	}
+
+	switch op {
+	case "+", "-", "*", "/":
+		return true, Uint8{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
 	}

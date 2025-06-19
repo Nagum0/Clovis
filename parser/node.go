@@ -565,6 +565,10 @@ func isNumber(t semantics.Type) bool {
 		fallthrough
 	case semantics.UINT32:
 		fallthrough
+	case semantics.UINT16:
+		fallthrough
+	case semantics.UINT8:
+		fallthrough
 	case semantics.UINT_LIT:
 		return true
 	}
