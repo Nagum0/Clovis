@@ -422,14 +422,58 @@ func (exp UnaryExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
-// TODO: UnaryExpression.Semantics
+// TODO: UnaryExpression.Semantics for "-" and "!"
 func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Right.Semantics(s); err != nil {
+		return nil
+	}
+
+	// Addressing operators can only be used on identifiers.
+	if exp.Op.Value == "*" || exp.Op.Value == "&" {
+		_, ok := exp.Right.(*IdentExpression)
+		if !ok {
+			return s.AddError(
+				fmt.Sprintf(
+					"'%v' operator can only be used on pointer type not on type %v", 
+					exp.Op.Value,
+					exp.Right.ExprType().TypeID(),
+				),
+				exp.Op,
+			)
+		}
+	}
+
+	l, t := exp.Right.ExprType().CanUseUnaryOperator(exp.Op.Value)
+	if !l {
+		return s.AddError(
+			fmt.Sprintf(
+				"Cannot use unary operator '%v' on type %v", 
+				exp.Op.Value,
+				exp.Right.ExprType().TypeID(),
+			),
+			exp.Op,
+		)
+	}
+	exp.Type = t
+
 	return nil
 }
 
-// TODO: UnaryExpression.EmitCode
+// TODO: UnaryExpression.EmitCode for "-" and "!"
 func (exp UnaryExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; UnaryExpression\n")
 
+	ident, isIdent := exp.Right.(*IdentExpression)
+
+	ptr, isPtr := ident.Type.(semantics.Ptr)
+	if exp.Op.Value == "*" && isIdent && isPtr {
+		exp.Right.EmitCode(e)
+		fmt.Fprintf(e, "mov %v, %v [rax]\n", ptr.ValueType.Register(), ptr.ValueType.ASMSize())
+	}
+
+	if exp.Op.Value == "&" && isIdent {
+		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", ident.Symbol.Offset)
+	}
 }
 
 func (exp UnaryExpression) Print(indent int) string {
@@ -519,7 +563,7 @@ func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 
 func (exp IdentExpression) Print(indent int) string {
 	result := fmt.Sprintf("IdentExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
+	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type.TypeID())
 	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), exp.Ident.Value)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }

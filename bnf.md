@@ -30,7 +30,7 @@
 <comparison> ::= <term> { ("<" | "<=" | ">" | ">=") <term> }
 <term> ::= <factor> { ("+" | "-") <factor> }
 <factor> ::= <unary> { ("*" | "/") <unary> }
-<unary> ::= ( "!" | "-" ) <unary> | <primary>
+<unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | <primary>
 <primary> ::= <literal> | ident | <groupExpr> | <functionCall>
 <groupExpr> ::= "(" <expression> ")"
 <functionCall> ::= ident "(" [ <param> { "," <param> } ] ")"

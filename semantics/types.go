@@ -1,5 +1,7 @@
 package semantics
 
+import "fmt"
+
 // A unique type identifier represented as a string.
 // Often times the name of the given type.
 type TypeID string
@@ -23,9 +25,12 @@ type Type interface {
 	Register() string
 	// The x86_64 nasm assembly size specifier.
 	ASMSize() string
-	// Checks whether a given operator can be used on the given type and 
+	// Checks whether a given binary operator can be used on the given type and 
 	// returns the result type after the operation.
 	CanUseOperator(op string, operand Type) (bool, Type)
+	// Checks whether a given unary operator can be used on the given type and 
+	// returns the result type after the operation.
+	CanUseUnaryOperator(op string) (bool, Type)
 }
 
 // This type is used during parsing where the specific type cannot be deduced yet.
@@ -48,6 +53,10 @@ func (_ Undefined) ASMSize() string {
 }
 
 func (_ Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
+	return false, Undefined{}
+}
+
+func (_ Undefined) CanUseUnaryOperator(op string) (bool, Type) {
 	return false, Undefined{}
 }
 
@@ -85,6 +94,10 @@ func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
+func (_ UintLiteral) CanUseUnaryOperator(op string) (bool, Type) {
+	return false, Undefined{}
+}
+
 // Unsigned 64 bit integer.
 type Uint64 struct {}
 
@@ -114,6 +127,14 @@ func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
 		return true, Uint64{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+func (_ Uint64) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: Uint64{} }
 	}
 
 	return false, Undefined{}
@@ -153,6 +174,14 @@ func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
+func (_ Uint32) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: Uint32{} }
+	}
+
+	return false, Undefined{}
+}
+
 // Unsigned 16 bit integer.
 type Uint16 struct {}
 
@@ -182,6 +211,14 @@ func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
 		return true, Uint16{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+func (_ Uint16) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: Uint16{} }
 	}
 
 	return false, Undefined{}
@@ -221,12 +258,16 @@ func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
+func (_ Uint8) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: Uint8{} }
+	}
+
+	return false, Undefined{}
+}
+
 // A 1 byte boolean value.
 type Bool struct {}
-
-func (_ Bool) Name() string {
-	return "bool"
-}
 
 func (_ Bool) TypeID() TypeID {
 	return BOOL
@@ -252,6 +293,51 @@ func (_ Bool) CanUseOperator(op string, operand Type) (bool, Type) {
 	switch op {
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
+	}
+
+	return false, Undefined{}
+}
+
+func (_ Bool) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: Bool{} }
+	}
+
+	return false, Undefined{}
+}
+
+// A pointer to some other type of data.
+type Ptr struct {
+	ValueType Type
+}
+
+func (p Ptr) TypeID() TypeID {
+	return TypeID(fmt.Sprintf("%v_PTR", p.TypeID()))
+}
+
+func (_ Ptr) Size() int {
+	return 8
+}
+
+func (_ Ptr) Register() string {
+	return "rax"
+}
+
+func (_ Ptr) ASMSize() string {
+	return "QWORD"
+}
+
+func (_ Ptr) CanUseOperator(op string, operand Type) (bool, Type) {
+	return false, Undefined{}
+}
+
+func (p Ptr) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "*" {
+		return true, p.ValueType
+	}
+
+	if op == "&" {
+		return true, Ptr{ ValueType: p }
 	}
 
 	return false, Undefined{}

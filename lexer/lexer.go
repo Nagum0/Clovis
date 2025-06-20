@@ -64,6 +64,9 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '}' {
 			l.consume()
 			l.emitToken(CLOSE_CURLY, l.col - 1)
+		} else if l.peek() == '&' {
+			l.consume()
+			l.emitToken(AMPERSAND, l.col - 1)
 		} else if l.peek() == '=' {
 			l.consume()
 			if l.peek() == '=' {

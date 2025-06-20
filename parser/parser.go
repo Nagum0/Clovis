@@ -383,9 +383,9 @@ func (p *Parser) parseFactor() (Expression, error) {
 	return left, nil
 }
 
-// <unary> ::= ( "!" | "-" ) <unary> | <primary>
+// <unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | <primary>
 func (p *Parser) parseUnary() (Expression, error) {
-	if p.matchAny(lexer.NOT, lexer.MINUS) {
+	if p.matchAny(lexer.NOT, lexer.MINUS, lexer.STAR, lexer.AMPERSAND) {
 		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {
