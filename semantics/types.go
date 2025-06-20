@@ -7,6 +7,7 @@ import "fmt"
 type TypeID string
 const (
 	UNDEFINED TypeID = "UNDEFINED"
+	PTR TypeID = "PTR"
 	UINT_LIT TypeID = "UINT_LIT"
 	UINT64 TypeID = "UINT64"
 	UINT32 TypeID = "UINT32"
@@ -80,13 +81,13 @@ func (_ UintLiteral) ASMSize() string {
 }
 
 func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
-	if operand.TypeID() != UINT64 {
+	if !IsNumber(operand) {
 		return false, Undefined{}
 	}
 
 	switch op {
 	case "+", "-", "*", "/":
-		return true, UintLiteral{}
+		return true, operand
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
 	}
@@ -312,7 +313,7 @@ type Ptr struct {
 }
 
 func (p Ptr) TypeID() TypeID {
-	return TypeID(fmt.Sprintf("%v_PTR", p.TypeID()))
+	return TypeID(fmt.Sprintf("%v_PTR", p.ValueType.TypeID()))
 }
 
 func (_ Ptr) Size() int {
@@ -341,4 +342,25 @@ func (p Ptr) CanUseUnaryOperator(op string) (bool, Type) {
 	}
 
 	return false, Undefined{}
+}
+
+// ---------------------------------------------------
+//                  HELPER FUNCTIONS
+// ---------------------------------------------------
+
+func IsNumber(t Type) bool {
+	switch t.TypeID() {
+	case UINT64:
+		fallthrough
+	case UINT32:
+		fallthrough
+	case UINT16:
+		fallthrough
+	case UINT8:
+		fallthrough
+	case UINT_LIT:
+		return true
+	}
+
+	return false
 }

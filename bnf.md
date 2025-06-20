@@ -13,8 +13,8 @@
                 <assert> |
                 <expressionStmt> |
                 <typeDeclaration>
-<varDecl> ::= ( "uint" | "bool" ) ident ";" | 
-              ( "uint" | "bool" ) ident "=" <expression> ";"
+<varDecl> ::= typeId ( "*" ) ident ";" | 
+              typeId ( "*" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
@@ -34,5 +34,4 @@
 <primary> ::= <literal> | ident | <groupExpr> | <functionCall>
 <groupExpr> ::= "(" <expression> ")"
 <functionCall> ::= ident "(" [ <param> { "," <param> } ] ")"
-<param> ::= <expression>
 ```

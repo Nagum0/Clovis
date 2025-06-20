@@ -45,7 +45,7 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 		}
 		
 		// Check type correctness
-		if !(isNumber(stmt.VarType) && isNumber(stmt.Value.Value().ExprType())) && 
+		if !(semantics.IsNumber(stmt.VarType) && semantics.IsNumber(stmt.Value.Value().ExprType())) && 
 		   !(stmt.VarType.TypeID() == stmt.Value.Value().ExprType().TypeID()) {
 			return s.AddError(
 				fmt.Sprintf(
@@ -113,7 +113,7 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 		return err
 	}
 
-	if !(isNumber(symbol.Type) && isNumber(stmt.Value.ExprType())) &&
+	if !(semantics.IsNumber(symbol.Type) && semantics.IsNumber(stmt.Value.ExprType())) &&
 	   !(symbol.Type.TypeID() == stmt.Value.ExprType().TypeID()) {
 		return s.AddError(
 			fmt.Sprintf(
@@ -427,21 +427,8 @@ func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Right.Semantics(s); err != nil {
 		return nil
 	}
-
-	// Addressing operators can only be used on identifiers.
-	if exp.Op.Value == "*" || exp.Op.Value == "&" {
-		_, ok := exp.Right.(*IdentExpression)
-		if !ok {
-			return s.AddError(
-				fmt.Sprintf(
-					"'%v' operator can only be used on pointer type not on type %v", 
-					exp.Op.Value,
-					exp.Right.ExprType().TypeID(),
-				),
-				exp.Op,
-			)
-		}
-	}
+	
+	// TODO: Make separation between addressable expressions.
 
 	l, t := exp.Right.ExprType().CanUseUnaryOperator(exp.Op.Value)
 	if !l {
@@ -461,16 +448,16 @@ func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
 
 // TODO: UnaryExpression.EmitCode for "-" and "!"
 func (exp UnaryExpression) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; UnaryExpression\n")
+	fmt.Fprintf(e, "; UnaryExpression op = %v\n", exp.Op.Value)
 
-	ident, isIdent := exp.Right.(*IdentExpression)
-
-	ptr, isPtr := ident.Type.(semantics.Ptr)
-	if exp.Op.Value == "*" && isIdent && isPtr {
+	ptr, isPtr := exp.Right.ExprType().(semantics.Ptr)
+	if exp.Op.Value == "*" && isPtr {
 		exp.Right.EmitCode(e)
 		fmt.Fprintf(e, "mov %v, %v [rax]\n", ptr.ValueType.Register(), ptr.ValueType.ASMSize())
+		return
 	}
-
+	
+	ident, isIdent := exp.Right.(*IdentExpression)
 	if exp.Op.Value == "&" && isIdent {
 		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", ident.Symbol.Offset)
 	}
@@ -597,25 +584,4 @@ func (exp GroupExpression) Print(indent int) string {
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
 	result += exp.Expr.Print(indent + 1)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
-}
-
-// ---------------------------------------------------
-//                  HELPER FUNCTIONS
-// ---------------------------------------------------
-
-func isNumber(t semantics.Type) bool {
-	switch t.TypeID() {
-	case semantics.UINT64:
-		fallthrough
-	case semantics.UINT32:
-		fallthrough
-	case semantics.UINT16:
-		fallthrough
-	case semantics.UINT8:
-		fallthrough
-	case semantics.UINT_LIT:
-		return true
-	}
-
-	return false
 }

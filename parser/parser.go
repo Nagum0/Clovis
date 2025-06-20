@@ -96,6 +96,11 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	varTypeToken := p.consume()
 	varDeclStmt.VarType = p.getType(varTypeToken.Type)
 
+	if p.match(lexer.STAR) {
+		p.consume() // '*'
+		varDeclStmt.VarType = semantics.Ptr{ ValueType: varDeclStmt.VarType }
+	}
+
 	if p.match(lexer.IDENT) {
 		varDeclStmt.Ident = p.consume()
 	} else {
