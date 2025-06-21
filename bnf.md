@@ -23,15 +23,17 @@
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
 <expressionStmt> ::= <expression> ";"
-<typeDeclaration> ::= 
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
 <comparison> ::= <term> { ("<" | "<=" | ">" | ">=") <term> }
 <term> ::= <factor> { ("+" | "-") <factor> }
 <factor> ::= <unary> { ("*" | "/") <unary> }
-<unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | <primary>
-<primary> ::= <literal> | ident | <groupExpr> | <functionCall>
+<unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | 
+            <postfix>
+<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | <funcCall> }
+<primary> ::= <literal> | <ident> | <groupExpr>
+<arrayAccess> := "[" <expression> "]"
+<funcCall> ::= TODO
 <groupExpr> ::= "(" <expression> ")"
-<functionCall> ::= ident "(" [ <param> { "," <param> } ] ")"
 ```

@@ -329,6 +329,11 @@ func (stmt ExpressionStmt) Print(indent int) string {
 	return b.String()
 }
 
+// NOTE: Maybe make a superset of expressions for addressable exprssions and
+// store neccessary data for them.
+//
+// NOTE: Maybe make EmitAddressCode function which can be used on expressions that are addressable.
+//
 // This interface represents an expression in the language.
 // and holds the needed functions for semantic analysis and code generation.
 // All expressions must have a type that can be check with the ExprType() function.
@@ -340,6 +345,8 @@ type Expression interface {
 	// Using codegen.Emitter this emits the assembly code for the expression.
 	// All expressions are evaluated in the rax register.
 	EmitCode(e *codegen.Emitter)
+	// Returns whether the expression is addressable.
+	IsAddressable() bool
 	// Pretty prints the expression.
 	Print(indent int) string
 }
@@ -402,6 +409,10 @@ func (exp BinaryExpression) EmitCode(e *codegen.Emitter) {
 	}
 }
 
+func (_ BinaryExpression) IsAddressable() bool {
+	return false
+}
+
 func (exp BinaryExpression) Print(indent int) string {
 	result := fmt.Sprintf("BinaryExpression\n%v{\n", indentStr(indent))
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
@@ -411,25 +422,35 @@ func (exp BinaryExpression) Print(indent int) string {
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }
 
-// A unary expression holds a unary operator and a right value.
-type UnaryExpression struct {
-	Type  semantics.Type
-	Op    lexer.Token
-	Right Expression
+// A prefix expression holds a unary operator and a right value.
+type PrefixExpression struct {
+	Type        semantics.Type
+	Op    	    lexer.Token
+	Right 	    Expression
+	Addressable bool
 }
 
-func (exp UnaryExpression) ExprType() semantics.Type {
+func (exp PrefixExpression) ExprType() semantics.Type {
 	return exp.Type
 }
 
-// TODO: UnaryExpression.Semantics for "-" and "!"
-func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
+// TODO: PrefixExpression.Semantics for "-" and "!"
+func (exp *PrefixExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Right.Semantics(s); err != nil {
 		return nil
 	}
 	
-	// TODO: Make separation between addressable expressions.
+	if exp.Op.Value == "&" && !exp.Right.IsAddressable() {
+		return s.AddError(
+			"Expression is not addressable",
+			exp.Op,
+		)
+	}
 
+	if exp.Op.Value == "*" && exp.Right.IsAddressable() {
+		exp.Addressable = true
+	}
+	
 	l, t := exp.Right.ExprType().CanUseUnaryOperator(exp.Op.Value)
 	if !l {
 		return s.AddError(
@@ -446,29 +467,64 @@ func (exp *UnaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-// TODO: UnaryExpression.EmitCode for "-" and "!"
-func (exp UnaryExpression) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; UnaryExpression op = %v\n", exp.Op.Value)
+// TODO: PrefixExpression.EmitCode for "-" and "!"
+func (exp PrefixExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; PrefixExpression op = %v\n", exp.Op.Value)
 
-	ptr, isPtr := exp.Right.ExprType().(semantics.Ptr)
-	if exp.Op.Value == "*" && isPtr {
+	switch exp.Op.Value {
+	case "*":
+		ptr, _ := exp.Right.ExprType().(semantics.Ptr)
 		exp.Right.EmitCode(e)
 		fmt.Fprintf(e, "mov %v, %v [rax]\n", ptr.ValueType.Register(), ptr.ValueType.ASMSize())
-		return
-	}
-	
-	ident, isIdent := exp.Right.(*IdentExpression)
-	if exp.Op.Value == "&" && isIdent {
-		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", ident.Symbol.Offset)
+		break
+	case "&":
+		ident, isIdent := exp.Right.(*IdentExpression)
+		if isIdent {
+			fmt.Fprintf(e, "lea rax, [rbp - %v]\n", ident.Symbol.Offset)
+		}
+		break
 	}
 }
 
-func (exp UnaryExpression) Print(indent int) string {
-	result := fmt.Sprintf("UnaryExpression\n%v{\n", indentStr(indent))
+func (exp PrefixExpression) IsAddressable() bool {
+	return exp.Addressable
+}
+
+func (exp PrefixExpression) Print(indent int) string {
+	result := fmt.Sprintf("PrefixExpression\n%v{\n", indentStr(indent))
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
 	result += fmt.Sprintf("%vOp: %v\n", indentStr(indent + 1), exp.Op)
 	result += exp.Right.Print(indent + 1)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+}
+
+// TODO: PostfixExpression
+// A postfix expression holds a unary operator and a left value.
+type PostfixExpression struct {
+	Type        semantics.Type
+	Left        Expression
+	Op          lexer.Token
+	Addressable bool
+}
+
+func (exp PostfixExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *PostfixExpression) Semantics(s *semantics.SemanticChecker) error {
+	return nil
+}
+
+func (exp PostfixExpression) EmitCode(e *codegen.Emitter) {
+	
+}
+
+func (exp PostfixExpression) IsAddressable() bool {
+	return exp.Addressable
+}
+
+func (exp PostfixExpression) Print(indent int) string {
+	return ""
 }
 
 // A literal expression holds a literal.
@@ -501,6 +557,10 @@ func (exp LiteralExpression) EmitCode(e *codegen.Emitter) {
 	
 	fmt.Fprintf(e, "; LiteralExpression: type = %v value = %v\n", exp.Type.TypeID(), value)
 	fmt.Fprintf(e, "mov rax, %v\n", value)
+}
+
+func (exp LiteralExpression) IsAddressable() bool {
+	return false
 }
 
 func (exp LiteralExpression) Print(indent int) string {
@@ -548,6 +608,10 @@ func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 	)
 }
 
+func (exp IdentExpression) IsAddressable() bool {
+	return true
+}
+
 func (exp IdentExpression) Print(indent int) string {
 	result := fmt.Sprintf("IdentExpression\n%v{\n", indentStr(indent))
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type.TypeID())
@@ -577,6 +641,10 @@ func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
 
 func (exp GroupExpression) EmitCode(e *codegen.Emitter) {
 	exp.Expr.EmitCode(e)
+}
+
+func (exp GroupExpression) IsAddressable() bool {
+	return exp.IsAddressable()
 }
 
 func (exp GroupExpression) Print(indent int) string {

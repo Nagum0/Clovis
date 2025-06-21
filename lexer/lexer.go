@@ -64,6 +64,12 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '}' {
 			l.consume()
 			l.emitToken(CLOSE_CURLY, l.col - 1)
+		} else if l.peek() == '[' {
+			l.consume()
+			l.emitToken(OPEN_BRACKET, l.col - 1)
+		} else if l.peek() == ']' {
+			l.consume()
+			l.emitToken(CLOSE_BRACKET, l.col - 1)
 		} else if l.peek() == '&' {
 			l.consume()
 			l.emitToken(AMPERSAND, l.col - 1)
@@ -99,10 +105,20 @@ func (l *Lexer) Lex() error {
 			}
 		} else if l.peek() == '+' {
 			l.consume()
-			l.emitToken(PLUS, l.col - 1)
+			if l.peek() == '+' {
+				l.consume()
+				l.emitToken(PLUS_PLUS, l.col - 1)
+			} else {
+				l.emitToken(PLUS, l.col - 1)
+			}
 		} else if l.peek() == '-' {
 			l.consume()
-			l.emitToken(MINUS, l.col - 1)
+			if l.peek() == '-' {
+				l.consume()
+				l.emitToken(MINUS_MINUS, l.col - 1)
+			} else {
+				l.emitToken(MINUS, l.col - 1)
+			}
 		} else if l.peek() == '*' {
 			l.consume()
 			l.emitToken(STAR, l.col - 1)

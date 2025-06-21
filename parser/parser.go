@@ -388,7 +388,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 	return left, nil
 }
 
-// <unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | <primary>
+// <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <primary>
 func (p *Parser) parseUnary() (Expression, error) {
 	if p.matchAny(lexer.NOT, lexer.MINUS, lexer.STAR, lexer.AMPERSAND) {
 		op := p.consume()
@@ -397,7 +397,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 			return nil, err
 		}
 
-		un := &UnaryExpression{
+		un := &PrefixExpression{
 			Type: semantics.Undefined{},
 			Op: op,
 			Right: right,
@@ -407,6 +407,35 @@ func (p *Parser) parseUnary() (Expression, error) {
 	}
 
 	return p.parsePrimary()
+}
+
+// <postfix> ::= <primary> { ( "++" | "--" | "[" <expression> "]" | <funcCall> }
+func (p *Parser) parsePostfix() (Expression, error) {
+	left, err := p.parsePrimary()
+	if err != nil {
+		return nil, err
+	}
+	
+	// TODO: function call
+	for p.matchAny(lexer.PLUS_PLUS, lexer.MINUS_MINUS, lexer.OPEN_BRACKET) {
+		op := p.consume()
+
+		switch op.Type {
+		case lexer.PLUS_PLUS:
+			fallthrough
+		case lexer.MINUS_MINUS:
+			left = &PostfixExpression{
+				Left: left,
+				Op: op,
+			}
+			break
+		// TODO: Array indexing expression
+		case lexer.OPEN_BRACKET:
+			break
+		}
+	}
+
+	return left, nil
 }
 
 // <primary> ::= <literal> | ident | "(" <expression> ")" 
