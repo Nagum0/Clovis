@@ -96,7 +96,7 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	varTypeToken := p.consume()
 	varDeclStmt.VarType = p.getType(varTypeToken.Type)
 
-	if p.match(lexer.STAR) {
+	for p.match(lexer.STAR) {
 		p.consume() // '*'
 		varDeclStmt.VarType = semantics.Ptr{ ValueType: varDeclStmt.VarType }
 	}
@@ -390,7 +390,27 @@ func (p *Parser) parseFactor() (Expression, error) {
 
 // <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <primary>
 func (p *Parser) parseUnary() (Expression, error) {
-	if p.matchAny(lexer.NOT, lexer.MINUS, lexer.STAR, lexer.AMPERSAND) {
+	if p.match(lexer.STAR) {
+		derefExpr := DerefExpression{ Op: p.consume() }
+
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
+		derefExpr.Right = right
+
+		return &derefExpr, nil
+	} else if p.match(lexer.AMPERSAND) {
+		refExpr := ReferenceExpression{ Op: p.consume() }
+
+		right, err := p.parseUnary()
+		if err != nil {
+			return nil, err
+		}
+		refExpr.Right = right
+
+		return &refExpr, nil
+	} else if p.matchAny(lexer.NOT, lexer.MINUS) {
 		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {
@@ -416,24 +436,7 @@ func (p *Parser) parsePostfix() (Expression, error) {
 		return nil, err
 	}
 	
-	// TODO: function call
-	for p.matchAny(lexer.PLUS_PLUS, lexer.MINUS_MINUS, lexer.OPEN_BRACKET) {
-		op := p.consume()
-
-		switch op.Type {
-		case lexer.PLUS_PLUS:
-			fallthrough
-		case lexer.MINUS_MINUS:
-			left = &PostfixExpression{
-				Left: left,
-				Op: op,
-			}
-			break
-		// TODO: Array indexing expression
-		case lexer.OPEN_BRACKET:
-			break
-		}
-	}
+	// TODO: Implement postfix operator parsing
 
 	return left, nil
 }

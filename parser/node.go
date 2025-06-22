@@ -329,11 +329,6 @@ func (stmt ExpressionStmt) Print(indent int) string {
 	return b.String()
 }
 
-// NOTE: Maybe make a superset of expressions for addressable exprssions and
-// store neccessary data for them.
-//
-// NOTE: Maybe make EmitAddressCode function which can be used on expressions that are addressable.
-//
 // This interface represents an expression in the language.
 // and holds the needed functions for semantic analysis and code generation.
 // All expressions must have a type that can be check with the ExprType() function.
@@ -349,6 +344,14 @@ type Expression interface {
 	IsAddressable() bool
 	// Pretty prints the expression.
 	Print(indent int) string
+}
+
+// An AddressableExpression implements everything that a Expression implements
+// it just represents expressions that have a memory location or point to one.
+type AddressableExpression interface {
+	Expression
+	// Moves the address of the expression into the rax register.
+	EmitAddressCode(e *codegen.Emitter)
 }
 
 // A binary expression holds a left value and a right value and an operator.
@@ -436,54 +439,12 @@ func (exp PrefixExpression) ExprType() semantics.Type {
 
 // TODO: PrefixExpression.Semantics for "-" and "!"
 func (exp *PrefixExpression) Semantics(s *semantics.SemanticChecker) error {
-	if err := exp.Right.Semantics(s); err != nil {
-		return nil
-	}
-	
-	if exp.Op.Value == "&" && !exp.Right.IsAddressable() {
-		return s.AddError(
-			"Expression is not addressable",
-			exp.Op,
-		)
-	}
-
-	if exp.Op.Value == "*" && exp.Right.IsAddressable() {
-		exp.Addressable = true
-	}
-	
-	l, t := exp.Right.ExprType().CanUseUnaryOperator(exp.Op.Value)
-	if !l {
-		return s.AddError(
-			fmt.Sprintf(
-				"Cannot use unary operator '%v' on type %v", 
-				exp.Op.Value,
-				exp.Right.ExprType().TypeID(),
-			),
-			exp.Op,
-		)
-	}
-	exp.Type = t
-
 	return nil
 }
 
 // TODO: PrefixExpression.EmitCode for "-" and "!"
 func (exp PrefixExpression) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; PrefixExpression op = %v\n", exp.Op.Value)
 
-	switch exp.Op.Value {
-	case "*":
-		ptr, _ := exp.Right.ExprType().(semantics.Ptr)
-		exp.Right.EmitCode(e)
-		fmt.Fprintf(e, "mov %v, %v [rax]\n", ptr.ValueType.Register(), ptr.ValueType.ASMSize())
-		break
-	case "&":
-		ident, isIdent := exp.Right.(*IdentExpression)
-		if isIdent {
-			fmt.Fprintf(e, "lea rax, [rbp - %v]\n", ident.Symbol.Offset)
-		}
-		break
-	}
 }
 
 func (exp PrefixExpression) IsAddressable() bool {
@@ -524,6 +485,108 @@ func (exp PostfixExpression) IsAddressable() bool {
 }
 
 func (exp PostfixExpression) Print(indent int) string {
+	return ""
+}
+
+// A dereference expression.
+// Example:
+//	uint32 y = *x; // *x returns the value (rvalue) stored at the location where x is pointing to
+//  *x = 69; // Moves value 69 to the location x is pointing to (here *x returns an lvalue)
+type DerefExpression struct {
+	Type   semantics.Type
+	Op     lexer.Token
+	Right  Expression
+}
+
+func (exp DerefExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *DerefExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Right.Semantics(s); err != nil {
+		return err
+	}
+	
+	ptr, isPtr := exp.Right.ExprType().(semantics.Ptr)
+	if !isPtr {
+		return s.AddError(
+			 fmt.Sprintf(
+				 "'*' dereference operator expected a PTR not %v", 
+				 exp.Right.ExprType().TypeID(),
+			 ),
+			 exp.Op,
+		)
+	}
+	exp.Type = ptr.ValueType
+	
+	return nil
+}
+
+func (exp DerefExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; DerefExpression rvalue type = %v\n", exp.Type.TypeID())
+	exp.Right.EmitCode(e)
+	fmt.Fprintf(e, "mov %v, %v [rax]\n", exp.Type.Register(), exp.Type.ASMSize())
+}
+
+func (exp DerefExpression) EmitAddressCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; DerefExpression lvalue type = %v\n", exp.Type.TypeID())
+	exp.Right.EmitCode(e)
+}
+
+func (exp DerefExpression) IsAddressable() bool {
+	return true
+}
+
+func (exp DerefExpression) Print(indent int) string {
+	return ""
+}
+
+// A refence expression.
+// Example:
+//	uint32* xPtr = &x; // &x returns the address of x
+type ReferenceExpression struct {
+	Type  semantics.Type
+	Op    lexer.Token
+	Right Expression
+}
+
+func (exp ReferenceExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *ReferenceExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Right.Semantics(s); err != nil {
+		return err
+	}
+
+	if !exp.Right.IsAddressable() {
+		return s.AddError(
+			"Expected an addressable expression",
+			exp.Op,
+		)
+	}
+
+	exp.Type = semantics.Ptr{ ValueType: exp.Right.ExprType() }
+
+	return nil
+}
+
+func (exp ReferenceExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ReferenceExpression type = %v\n", exp.Type.TypeID())
+	addr, _ := exp.Right.(AddressableExpression)
+	addr.EmitAddressCode(e)
+}
+
+func (exp ReferenceExpression) EmitAddressCode(e *codegen.Emitter) {
+	// rax already holds the address
+	panic("&&x or &(&x) is incorrect usage")
+}
+
+func (exp ReferenceExpression) IsAddressable() bool {
+	return true
+}
+
+func (exp ReferenceExpression) Print(indent int) string {
 	return ""
 }
 
@@ -594,11 +657,10 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-// Identifier expressions are evaluated in the rax register.
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(
 		e,
-		"; IdentExpression: %v type = %v offset = %v\n",
+		"; IdentExpression %v type = %v offset = %v\n",
 		exp.Ident.Value, exp.Type.TypeID(), exp.Symbol.Offset,
 	)
 	fmt.Fprintf(
@@ -606,6 +668,15 @@ func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 		"xor rax, rax\nmov %v, %v [rbp - %v]\n",
 		exp.Type.Register(), exp.Type.ASMSize(), exp.Symbol.Offset,
 	)
+}
+
+func (exp IdentExpression) EmitAddressCode(e *codegen.Emitter) {
+	fmt.Fprintf(
+		e, 
+		"; IdentExpression %v lea\n",
+		exp.Ident.Value,
+	)
+	fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
 }
 
 func (exp IdentExpression) IsAddressable() bool {
@@ -641,6 +712,13 @@ func (exp *GroupExpression) Semantics(s *semantics.SemanticChecker) error {
 
 func (exp GroupExpression) EmitCode(e *codegen.Emitter) {
 	exp.Expr.EmitCode(e)
+}
+
+func (exp GroupExpression) EmitAddressCode(e *codegen.Emitter) {
+	addr, isAddr := exp.Expr.(AddressableExpression)
+	if isAddr {
+		addr.EmitAddressCode(e)
+	}
 }
 
 func (exp GroupExpression) IsAddressable() bool {

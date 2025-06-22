@@ -15,7 +15,7 @@
                 <typeDeclaration>
 <varDecl> ::= typeId ( "*" ) ident ";" | 
               typeId ( "*" ) ident "=" <expression> ";"
-<varDefinition> ::= ident "=" <expression> ";"
+<varDefinition> ::= <lvalue> < "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
 <whileStmt> ::= "while" <expression> <statement>
