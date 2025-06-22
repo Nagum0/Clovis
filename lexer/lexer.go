@@ -64,6 +64,15 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '}' {
 			l.consume()
 			l.emitToken(CLOSE_CURLY, l.col - 1)
+		} else if l.peek() == '[' {
+			l.consume()
+			l.emitToken(OPEN_BRACKET, l.col - 1)
+		} else if l.peek() == ']' {
+			l.consume()
+			l.emitToken(CLOSE_BRACKET, l.col - 1)
+		} else if l.peek() == '&' {
+			l.consume()
+			l.emitToken(AMPERSAND, l.col - 1)
 		} else if l.peek() == '=' {
 			l.consume()
 			if l.peek() == '=' {
@@ -96,10 +105,20 @@ func (l *Lexer) Lex() error {
 			}
 		} else if l.peek() == '+' {
 			l.consume()
-			l.emitToken(PLUS, l.col - 1)
+			if l.peek() == '+' {
+				l.consume()
+				l.emitToken(PLUS_PLUS, l.col - 1)
+			} else {
+				l.emitToken(PLUS, l.col - 1)
+			}
 		} else if l.peek() == '-' {
 			l.consume()
-			l.emitToken(MINUS, l.col - 1)
+			if l.peek() == '-' {
+				l.consume()
+				l.emitToken(MINUS_MINUS, l.col - 1)
+			} else {
+				l.emitToken(MINUS, l.col - 1)
+			}
 		} else if l.peek() == '*' {
 			l.consume()
 			l.emitToken(STAR, l.col - 1)
@@ -114,7 +133,7 @@ func (l *Lexer) Lex() error {
 				l.consume()
 			}
 
-			l.emitToken(UINT_LIT, startCol)
+			l.emitToken(UINT_64_LIT, startCol)
 		} else if unicode.IsLetter(l.peek()) || l.peek() == '_' {
 			startCol := l.col
 			l.consume()
@@ -160,8 +179,17 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "for":
 		l.emitToken(FOR, startCol)
 		return true
-	case "uint":
-		l.emitToken(UINT, startCol)
+	case "uint64":
+		l.emitToken(UINT_64, startCol)
+		return true
+	case "uint32":
+		l.emitToken(UINT_32, startCol)
+		return true
+	case "uint16":
+		l.emitToken(UINT_16, startCol)
+		return true
+	case "uint8":
+		l.emitToken(UINT_8, startCol)
 		return true
 	case "bool":
 		l.emitToken(BOOL, startCol)

@@ -11,9 +11,10 @@
                 <whileStmt> |
                 <forStmt> |
                 <assert> |
-                <expressionStmt>
-<varDecl> ::= ( "uint" | "bool" ) ident ";" | 
-              ( "uint" | "bool" ) ident "=" <expression> ";"
+                <expressionStmt> |
+                <typeDeclaration>
+<varDecl> ::= typeId ( "*" ) ident ";" | 
+              typeId ( "*" ) ident "=" <expression> ";"
 <varDefinition> ::= ident "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
@@ -28,9 +29,11 @@
 <comparison> ::= <term> { ("<" | "<=" | ">" | ">=") <term> }
 <term> ::= <factor> { ("+" | "-") <factor> }
 <factor> ::= <unary> { ("*" | "/") <unary> }
-<unary> ::= ( "!" | "-" ) <unary> | <primary>
-<primary> ::= <literal> | ident | <groupExpr> | <functionCall>
+<unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | 
+            <postfix>
+<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | <funcCall> }
+<primary> ::= <literal> | <ident> | <groupExpr>
+<arrayAccess> := "[" <expression> "]"
+<funcCall> ::= TODO
 <groupExpr> ::= "(" <expression> ")"
-<functionCall> ::= ident "(" [ <param> { "," <param> } ] ")"
-<param> ::= <expression>
 ```

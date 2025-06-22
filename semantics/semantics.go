@@ -22,49 +22,6 @@ func (s *SemanticError) Error() string {
 	return fmt.Sprintf("Semantic error at line %v at col %v\n\t%v", s.token.Line, s.token.Col, s.msg)
 }
 
-// Represents a type for semantic analysis.
-type Type string
-const (
-	UNKNOWN = "UNKNOWN"
-	UINT = "UINT"
-	BOOL = "BOOL"
-)
-
-func (t Type) Size() int {
-	switch t {
-	case BOOL:
-		return 1
-	case UINT:
-		return 8
-	}
-
-	return 0
-}
-
-// Returns the size specifier of the type in x86_64 asm.
-func (t Type) ASMSize() string {
-	switch t {
-	case BOOL:
-		return "BYTE"
-	case UINT:
-		return "QWORD"
-	}
-
-	return ""
-}
-
-// Returns which subregister of rax the type's value can be found in.
-func (t Type) ASMExprReg() string {
-	switch t {
-	case BOOL:
-		return "al"
-	case UINT:
-		return "rax"
-	}
-
-	return "rax"
-}
-
 type Symbol struct {
 	Ident  string
 	Type   Type
@@ -76,7 +33,7 @@ type Symbol struct {
 func (s Symbol) String() string {
 	return fmt.Sprintf(
 		"ident: %v, type: %v, stack_offset: %v, size: %v",
-		s.Ident, s.Type, s.Offset, s.Size,
+		s.Ident, s.Type.TypeID(), s.Offset, s.Size,
 	)
 }
 
@@ -111,12 +68,10 @@ func (s *SemanticChecker) AddError(msg string, token lexer.Token) error {
 
 func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.Token) error {
 	if s.TopBlockHasSymbol(ident) {
-		err := NewSemanticError(
+		return s.AddError(
 			fmt.Sprintf("Redeclaration of symbol '%v'", ident),
 			token,
 		)
-		s.Errors = append(s.Errors, err)
-		return err
 	}
 
 	symbolSize := symbolType.Size()
@@ -169,14 +124,11 @@ func (s *SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
 			return &symbol, nil
 		}
 	}
-	
-	err := NewSemanticError(
+
+	return nil, s.AddError(
 		fmt.Sprintf("Undeclared symbol '%v'", ident.Value),
 		ident,
 	)
-	s.Errors = append(s.Errors, err)
-
-	return nil, err
 }
 
 func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
@@ -196,35 +148,6 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	return false
 }
 
-// Returns the semantic type of an operator.
-func OperatorType(op lexer.Token) Type {
-	switch op.Value {
-	case "+":
-		fallthrough
-	case "-":
-		fallthrough
-	case "*":
-		fallthrough
-	case "/":
-		return UINT
-	case "==":
-		fallthrough
-	case "!=":
-		fallthrough
-	case "<":
-		fallthrough
-	case "<=":
-		fallthrough
-	case ">":
-		fallthrough
-	case ">=":
-		return BOOL
-	}
-
-
-	return UNKNOWN
-}
-
 func align16(x int) int {
     remainder := x % 16
 
@@ -234,4 +157,3 @@ func align16(x int) int {
 
     return x + (16 - remainder)
 }
-

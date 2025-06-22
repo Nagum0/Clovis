@@ -69,7 +69,7 @@ func (p *Parser) parseStatements() []Statement {
 }
 
 func (p *Parser) parseStatement() (Statement, error) {
-	if p.match(lexer.UINT) || p.match(lexer.BOOL) {
+	if p.matchAny(lexer.UINT_64, lexer.UINT_32, lexer.UINT_16, lexer.UINT_8, lexer.BOOL) {
 		return p.parseVarDecl()
 	} else if p.match(lexer.IDENT) {
 		return p.parseVarDefinition()
@@ -95,6 +95,11 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	varDeclStmt := &VarDeclStmt{}
 	varTypeToken := p.consume()
 	varDeclStmt.VarType = p.getType(varTypeToken.Type)
+
+	if p.match(lexer.STAR) {
+		p.consume() // '*'
+		varDeclStmt.VarType = semantics.Ptr{ ValueType: varDeclStmt.VarType }
+	}
 
 	if p.match(lexer.IDENT) {
 		varDeclStmt.Ident = p.consume()
@@ -298,7 +303,7 @@ func (p *Parser) parseEquality() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -323,7 +328,7 @@ func (p *Parser) parseComparison() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -348,7 +353,7 @@ func (p *Parser) parseTerm() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -373,7 +378,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Left: left,
 			Op: op,
 			Right: right,
@@ -383,17 +388,17 @@ func (p *Parser) parseFactor() (Expression, error) {
 	return left, nil
 }
 
-// <unary> ::= ( "!" | "-" ) <unary> | <primary>
+// <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <primary>
 func (p *Parser) parseUnary() (Expression, error) {
-	if p.matchAny(lexer.NOT, lexer.MINUS) {
+	if p.matchAny(lexer.NOT, lexer.MINUS, lexer.STAR, lexer.AMPERSAND) {
 		op := p.consume()
 		right, err := p.parseUnary()
 		if err != nil {
 			return nil, err
 		}
 
-		un := &UnaryExpression{
-			Type: semantics.UNKNOWN,
+		un := &PrefixExpression{
+			Type: semantics.Undefined{},
 			Op: op,
 			Right: right,
 		}
@@ -404,9 +409,38 @@ func (p *Parser) parseUnary() (Expression, error) {
 	return p.parsePrimary()
 }
 
+// <postfix> ::= <primary> { ( "++" | "--" | "[" <expression> "]" | <funcCall> }
+func (p *Parser) parsePostfix() (Expression, error) {
+	left, err := p.parsePrimary()
+	if err != nil {
+		return nil, err
+	}
+	
+	// TODO: function call
+	for p.matchAny(lexer.PLUS_PLUS, lexer.MINUS_MINUS, lexer.OPEN_BRACKET) {
+		op := p.consume()
+
+		switch op.Type {
+		case lexer.PLUS_PLUS:
+			fallthrough
+		case lexer.MINUS_MINUS:
+			left = &PostfixExpression{
+				Left: left,
+				Op: op,
+			}
+			break
+		// TODO: Array indexing expression
+		case lexer.OPEN_BRACKET:
+			break
+		}
+	}
+
+	return left, nil
+}
+
 // <primary> ::= <literal> | ident | "(" <expression> ")" 
 func (p *Parser) parsePrimary() (Expression, error) {
-	if p.matchAny(lexer.UINT_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
+	if p.matchAny(lexer.UINT_64_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
 		litExpr := &LiteralExpression{
 			Type: p.getType(p.peek().Type),
 			Value: p.consume(),
@@ -414,7 +448,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		return litExpr, nil
 	} else if p.match(lexer.IDENT) {
 		identExpr := &IdentExpression{
-			Type: semantics.UNKNOWN,
+			Type: semantics.Undefined{},
 			Ident: p.consume(),
 		}
 		return identExpr, nil
@@ -432,7 +466,7 @@ func (p *Parser) parsePrimary() (Expression, error) {
 // <groupExpr> ::= "(" <expression> ")"
 func (p *Parser) parseGroupExpr() (Expression, error) {
 	groupExpr := &GroupExpression{
-		Type: semantics.UNKNOWN,
+		Type: semantics.Undefined{},
 	}
 
 	p.consume()
@@ -497,17 +531,23 @@ func (p *Parser) synchronize() {
 
 func (p *Parser) getType(tokenType lexer.TokenType) semantics.Type {
 	switch tokenType {
-	case lexer.UINT:
-		fallthrough
-	case lexer.UINT_LIT:
-		return semantics.UINT
+	case lexer.UINT_8:
+		return semantics.Uint8{}
+	case lexer.UINT_16:
+		return semantics.Uint16{}
+	case lexer.UINT_32:
+		return semantics.Uint32{}
+	case lexer.UINT_64:
+		return semantics.Uint64{}
+	case lexer.UINT_64_LIT:
+		return semantics.UintLiteral{}
 	case lexer.BOOL:
 		fallthrough
 	case lexer.TRUE_LIT:
 		fallthrough
 	case lexer.FALSE_LIT:
-		return semantics.BOOL
+		return semantics.Bool{}
 	}
 
-	return semantics.UNKNOWN
+	return semantics.Undefined{}
 }
