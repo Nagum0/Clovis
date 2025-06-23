@@ -86,7 +86,7 @@ func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "=":
 		return true, operand
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
@@ -124,7 +124,7 @@ func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "=":
 		return true, Uint64{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
@@ -166,7 +166,7 @@ func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "=":
 		return true, Uint32{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
@@ -208,7 +208,7 @@ func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "=":
 		return true, Uint16{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
@@ -250,7 +250,7 @@ func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "=":
 		return true, Uint8{}
 	case "==", "<", ">", "<=", ">=", "!=":
 		return true, Bool{}
@@ -292,7 +292,7 @@ func (_ Bool) CanUseOperator(op string, operand Type) (bool, Type) {
 	}
 
 	switch op {
-	case "==", "<", ">", "<=", ">=", "!=":
+	case "==", "<", ">", "<=", ">=", "!=", "=":
 		return true, Bool{}
 	}
 
@@ -328,7 +328,15 @@ func (_ Ptr) ASMSize() string {
 	return "QWORD"
 }
 
-func (_ Ptr) CanUseOperator(op string, operand Type) (bool, Type) {
+func (p Ptr) CanUseOperator(op string, operand Type) (bool, Type) {
+	if p.TypeID() != operand.TypeID() {
+		return false, Undefined{}
+	}
+	
+	if op == "=" {
+		return true, p
+	}
+
 	return false, Undefined{}
 }
 

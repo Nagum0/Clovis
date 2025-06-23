@@ -71,7 +71,7 @@ func (p *Parser) parseStatements() []Statement {
 func (p *Parser) parseStatement() (Statement, error) {
 	if p.matchAny(lexer.UINT_64, lexer.UINT_32, lexer.UINT_16, lexer.UINT_8, lexer.BOOL) {
 		return p.parseVarDecl()
-	} else if p.match(lexer.IDENT) {
+	} else if p.matchAny(lexer.STAR, lexer.IDENT) {
 		return p.parseVarDefinition()
 	} else if p.match(lexer.OPEN_CURLY) {
 		return p.parseBlockStmt()
@@ -133,35 +133,38 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	return varDeclStmt, nil
 }
 
-// <varDefinition> ::= ident "=" <expression> ";"
+// <varDefinition> ::= <lvalue> "=" <expression> ";"
 func (p *Parser) parseVarDefinition() (Statement, error) {
-	ident := p.consume()
+	varDefStmt := VarDefinitionStmt{}
 
-	if !p.match(lexer.ASSIGN) {
-		err := NewParserError(
-			p.peek(),
-			"Expected '=' after variable identifier",
-		)
+	left, err := p.parseExpression()
+	if err != nil {
 		return nil, err
 	}
+	varDefStmt.Left = left
 
-	p.consume() // consume '='
-
-	exprVal, err := p.parseExpression()
-	if err != nil {
-		e := NewParserError(
+	if !p.match(lexer.ASSIGN) {
+		return nil, NewParserError(
 			p.peek(),
-			fmt.Sprintf("At variable definition\n\t%v", err.Error()),
+			fmt.Sprintf("Expected '=' for assignment but received '%v'", p.peek().Value),
 		)
-		return nil, e
+	}
+	varDefStmt.Op = p.consume()
+
+	right, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	varDefStmt.Right = right
+
+	if !p.match(lexer.SEMI) {
+		return nil, NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ';' at the end of statement but received '%v'", p.peek().Value),
+		)
 	}
 
-	p.consume() // consume ';'
-
-	varDefStmt := VarDefinitionStmt{
-		Ident: ident,
-		Value: exprVal,
-	}
+	p.consume() // ';'
 	
 	return &varDefStmt, nil
 }

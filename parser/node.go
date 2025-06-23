@@ -70,7 +70,7 @@ func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
 func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(
 		e,
-		"; VarDeclStmt: %v type = %v\n",
+		"; ------------------------- VarDeclStmt: %v type = %v -------------------------\n",
 		s.Ident.Value, s.VarType.TypeID(),
 	)
 	fmt.Fprintf(e, "sub rsp, %v\n", s.VarType.Size())
@@ -95,61 +95,59 @@ func (s VarDeclStmt) Print(indent int) string {
 
 // A variable definition statement.
 type VarDefinitionStmt struct {
-	// The variable's identifier.
-	Ident  lexer.Token
-	// The value we want to set. Can be any expression.
-	Value  Expression
-	// Used by the code emitter to get the symbol data
-	Symbol semantics.Symbol
+	Left  Expression
+	Op    lexer.Token
+	Right Expression
 }
 
 func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
-	if err := stmt.Value.Semantics(s); err != nil {
+	if err := stmt.Left.Semantics(s); err != nil {
 		return err
 	}
 
-	symbol, err := s.GetSymbol(stmt.Ident)
-	if err != nil {
+	if err := stmt.Right.Semantics(s); err != nil {
 		return err
 	}
 
-	if !(semantics.IsNumber(symbol.Type) && semantics.IsNumber(stmt.Value.ExprType())) &&
-	   !(symbol.Type.TypeID() == stmt.Value.ExprType().TypeID()) {
+	_, isAddr := stmt.Left.(AddressableExpression)
+	if !isAddr {
 		return s.AddError(
-			fmt.Sprintf(
-				"Cannot set variable '%v' of type %v to type %v", 
-				stmt.Ident.Value, 
-				symbol.Type.TypeID(), 
-				stmt.Value.ExprType().TypeID(),
-			),
-			stmt.Ident,
+			"Left side of assignment only accepts addressable expressions",
+			stmt.Op,
 		)
 	}
 
-	stmt.Symbol = *symbol
-
+	if l, _ := stmt.Left.ExprType().CanUseOperator("=", stmt.Right.ExprType()); !l {
+		return s.AddError(
+			fmt.Sprintf(
+				"Cannot assign type %v to address with type %v", 
+				stmt.Right.ExprType().TypeID(),
+				stmt.Left.ExprType().TypeID(),
+			),
+			stmt.Op,
+		)
+	}
+	
 	return nil
 }
 
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
-	stmt.Value.EmitCode(e)
+	fmt.Fprintf(e, "; ------------------------- VarDefinitionStmt -------------------------\n")
+	addr, _ := stmt.Left.(AddressableExpression)
+	addr.EmitAddressCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	stmt.Right.EmitCode(e)
+	fmt.Fprintf(e, "pop rbx\n")
 	fmt.Fprintf(
 		e, 
-		"; VarDefinitionStmt: %v type = %v offset = %v\n",
-		stmt.Ident.Value, stmt.Symbol.Type.TypeID(), stmt.Symbol.Offset,
-	)
-	fmt.Fprintf(
-		e, 
-		"mov %v [rbp - %v], %v\n",
-		stmt.Symbol.Type.ASMSize(), stmt.Symbol.Offset, stmt.Symbol.Type.Register(),
+		"mov %v [rbx], %v\n",
+		addr.ExprType().ASMSize(),
+		addr.ExprType().Register(),
 	)
 }
 
 func (stmt VarDefinitionStmt) Print(indent int) string {
-	result := fmt.Sprintf("VarDefinitionStmt\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vIdent: %v\n", indentStr(indent + 1), stmt.Ident)
-	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), stmt.Value.Print(indent + 1))
-	return fmt.Sprintf("%v%v\n}", indentStr(indent), result)
+	return ""
 }
 
 // A block statement holds a group of statements.
@@ -171,7 +169,7 @@ func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; BlockStmt: Size = %v", stmt.BlockSize)
+	fmt.Fprintf(e, "; ------------------------- BlockStmt: Size = %v -------------------------", stmt.BlockSize)
 	for _, innerStmt := range stmt.Statements {
 		innerStmt.EmitCode(e)
 	}
@@ -236,7 +234,7 @@ func (stmt *IfStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt IfStmt) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; IfStmt\n")
+	fmt.Fprintf(e, "; ------------------------- IfStmt ------------------------- \n")
 	stmt.Condition.EmitCode(e)
 	fmt.Fprintf(e, "cmp al, 1\n")
 	falseLabel := e.NextLabel()
@@ -287,7 +285,7 @@ func (stmt *AssertStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt AssertStmt) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; AssertStmt\n")
+	fmt.Fprintf(e, "; ------------------------- AssertStmt ------------------------- \n")
 	stmt.Expr.EmitCode(e)
 	fmt.Fprintf(e, "cmp al, 1\n")
 	endLabel := e.NextLabel()
