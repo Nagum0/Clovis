@@ -460,6 +460,8 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		return identExpr, nil
 	} else if p.match(lexer.OPEN_PAREN) {
 		return p.parseGroupExpr()
+	} else if p.match(lexer.OPEN_BRACKET) {
+		return p.parseArrayLiteral()
 	} else {
 		err := NewParserError(
 			p.peek(),
@@ -467,6 +469,42 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		)
 		return nil, err
 	}
+}
+
+// <arrayLiteral> ::= "[" { <expression> | <expression> "," } "]"
+func (p *Parser) parseArrayLiteral() (Expression, error) {
+	arrayLit := ArrayLiteral{ 
+		Type: semantics.Undefined{},
+		OpenBracket: p.consume(),
+	}
+	
+	firstExpr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	arrayLit.Elements = append(arrayLit.Elements, firstExpr)
+	arrayLit.Length++
+
+	for p.match(lexer.COMMA) {
+		p.consume() // ','
+		expr, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		arrayLit.Elements = append(arrayLit.Elements, expr)
+		arrayLit.Length++
+	}
+
+	if !p.match(lexer.CLOSE_BRACKET) {
+		return nil, NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ']' after array literal but received '%v'", p.peek().Value),
+		)
+	}
+
+	p.consume() // ']'
+
+	return &arrayLit, nil
 }
 
 // <groupExpr> ::= "(" <expression> ")"

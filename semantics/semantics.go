@@ -40,10 +40,13 @@ func (s Symbol) String() string {
 // The SemanticChecker is used to analyze the statements and expressions
 // to ensure their correctness.
 type SemanticChecker struct {
-	Errors			[]error
-	symbolTable     utils.Stack[Symbol]
-	blockIndexTable utils.Stack[int]
-	nextAddr		int
+	Errors			 []error
+	symbolTable      utils.Stack[Symbol]
+	blockIndexTable  utils.Stack[int]
+	nextAddr		 int
+	// Anonym symbols refer to symbols that dont't hold user given identifiers
+	// like array literals like [1, 2, 3] but they still need to be controlled on the stack.
+	nextAnonymSymbol int
 }
 
 func NewSemanticChecker() *SemanticChecker {
@@ -147,6 +150,16 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	
 	return false
 }
+
+// Returns a new anonym identifier.
+func (s *SemanticChecker) NextAnonymIdent() string {
+	s.nextAnonymSymbol++
+	return fmt.Sprintf(".ANON%v", s.nextAnonymSymbol)
+}
+
+// ---------------------------------------------------
+//                  HELPER FUNCTIONS
+// ---------------------------------------------------
 
 func align16(x int) int {
     remainder := x % 16

@@ -13,8 +13,8 @@
                 <assert> |
                 <expressionStmt> |
                 <typeDeclaration>
-<varDecl> ::= typeId ( "*" ) ident ";" | 
-              typeId ( "*" ) ident "=" <expression> ";"
+<varDecl> ::= type ( "*" ) <arrayAccess> ident ";" | 
+              type ( "*" ) <arrayAccess> ident "=" <expression> ";"
 <varDefinition> ::= <lvalue> < "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
@@ -32,7 +32,8 @@
 <unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | 
             <postfix>
 <postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | <funcCall> }
-<primary> ::= <literal> | <ident> | <groupExpr>
+<primary> ::= <literal> | <ident> | <groupExpr> | <arrayLiteral>
+<arrayLiteral> ::= "[" { <expression> | <expression> "," } "]"
 <arrayAccess> := "[" <expression> "]"
 <funcCall> ::= TODO
 <groupExpr> ::= "(" <expression> ")"

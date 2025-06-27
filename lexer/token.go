@@ -44,6 +44,7 @@ const (
 	F_SLASH = "F_SLASH"
 	ASSIGN = "ASSIGN"
 	AMPERSAND = "AMPERSAND"
+	COMMA = "COMMA"
 )
 
 type Token struct {

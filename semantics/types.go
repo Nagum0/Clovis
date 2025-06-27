@@ -26,6 +26,8 @@ type Type interface {
 	Register() string
 	// The x86_64 nasm assembly size specifier.
 	ASMSize() string
+	// Checks whether the current type equals the other given type.
+	Equals(other Type) bool
 	// Checks whether a given binary operator can be used on the given type and 
 	// returns the result type after the operation.
 	CanUseOperator(op string, operand Type) (bool, Type)
@@ -53,6 +55,10 @@ func (_ Undefined) ASMSize() string {
 	return ""
 }
 
+func (_ Undefined) Equals(other Type) bool {
+	return false
+}
+
 func (_ Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
@@ -78,6 +84,10 @@ func (_ UintLiteral) Register() string {
 
 func (_ UintLiteral) ASMSize() string {
 	return "QWORD"
+}
+
+func (u UintLiteral) Equals(other Type) bool {
+	return IsNumber(other)
 }
 
 func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
@@ -116,6 +126,10 @@ func (_ Uint64) Register() string {
 
 func (_ Uint64) ASMSize() string {
 	return "QWORD"
+}
+
+func (u Uint64) Equals(other Type) bool {
+	return u.TypeID() == other.TypeID() || other.TypeID() == UINT_LIT
 }
 
 func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
@@ -160,6 +174,10 @@ func (_ Uint32) ASMSize() string {
 	return "DWORD"
 }
 
+func (u Uint32) Equals(other Type) bool {
+	return u.TypeID() == other.TypeID() || other.TypeID() == UINT_LIT
+}
+
 func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT32 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
@@ -200,6 +218,10 @@ func (_ Uint16) Register() string {
 
 func (_ Uint16) ASMSize() string {
 	return "WORD"
+}
+
+func (u Uint16) Equals(other Type) bool {
+	return u.TypeID() == other.TypeID() || other.TypeID() == UINT_LIT
 }
 
 func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
@@ -244,6 +266,10 @@ func (_ Uint8) ASMSize() string {
 	return "BYTE"
 }
 
+func (u Uint8) Equals(other Type) bool {
+	return u.TypeID() == other.TypeID() || other.TypeID() == UINT_LIT
+}
+
 func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT8 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
@@ -284,6 +310,10 @@ func (_ Bool) Register() string {
 
 func (_ Bool) ASMSize() string {
 	return "BYTE"
+}
+
+func (b Bool) Equals(other Type) bool {
+	return other.TypeID() == BOOL
 }
 
 func (_ Bool) CanUseOperator(op string, operand Type) (bool, Type) {
@@ -328,6 +358,10 @@ func (_ Ptr) ASMSize() string {
 	return "QWORD"
 }
 
+func (p Ptr) Equals(other Type) bool {
+	return p.TypeID() == other.TypeID()
+}
+
 func (p Ptr) CanUseOperator(op string, operand Type) (bool, Type) {
 	if p.TypeID() != operand.TypeID() {
 		return false, Undefined{}
@@ -347,6 +381,44 @@ func (p Ptr) CanUseUnaryOperator(op string) (bool, Type) {
 
 	if op == "&" {
 		return true, Ptr{ ValueType: p }
+	}
+
+	return false, Undefined{}
+}
+
+// An array of a specific type of data.
+type Array struct {
+	Type   Type
+	Length int
+}
+
+func (a Array) TypeID() TypeID {
+	return TypeID(fmt.Sprintf("%v_ARRAY", a.Type.TypeID()))
+}
+
+func (a Array) Size() int {
+	return a.Type.Size() * a.Length
+}
+
+func (_ Array) Register() string {
+	return "rax"
+}
+
+func (_ Array) ASMSize() string {
+	return "QWORD"
+}
+
+func (a Array) Equals(other Type) bool {
+	return a.TypeID() == other.TypeID()
+}
+
+func (_ Array) CanUseOperator(op string, operand Type) (bool, Type) {
+	return false, Undefined{}
+}
+
+func (a Array) CanUseUnaryOperator(op string) (bool, Type) {
+	if op == "&" {
+		return true, Ptr{ ValueType: a }
 	}
 
 	return false, Undefined{}

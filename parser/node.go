@@ -169,7 +169,7 @@ func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; ------------------------- BlockStmt: Size = %v -------------------------", stmt.BlockSize)
+	fmt.Fprintf(e, "; ------------------------- BlockStmt: Size = %v -------------------------\n", stmt.BlockSize)
 	for _, innerStmt := range stmt.Statements {
 		innerStmt.EmitCode(e)
 	}
@@ -345,7 +345,7 @@ type Expression interface {
 }
 
 // An AddressableExpression implements everything that a Expression implements
-// it just represents expressions that have a memory location or point to one.
+// it just represents expressions that has a memory location or point to one.
 type AddressableExpression interface {
 	Expression
 	// Moves the address of the expression into the rax register.
@@ -631,6 +631,94 @@ func (exp LiteralExpression) Print(indent int) string {
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }
 
+// Represents a list of elements.
+// Example: [1, 2, 3]
+// The elements are pushed onto the stack in reverse order and 
+// the address of the first value is moved into rax.
+type ArrayLiteral struct {
+	Type        semantics.Type
+	Elements    []Expression
+	Length      int
+	// For error handling.
+	OpenBracket lexer.Token
+	// For code generation.
+	Symbol      semantics.Symbol
+}
+
+func (exp ArrayLiteral) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *ArrayLiteral) Semantics(s *semantics.SemanticChecker) error {
+	if len(exp.Elements) == 0 {
+		return s.AddError(
+			"Cannot have empty array literal []",
+			exp.OpenBracket,
+		)
+	}
+
+	prevElement := exp.Elements[0]
+	for _, element := range exp.Elements {
+		if err := element.Semantics(s); err != nil {
+			return err
+		}
+
+		if !prevElement.ExprType().Equals(element.ExprType()) {
+			return s.AddError(
+				fmt.Sprintf(
+					"Element types do not match in array literal expression %v != %v",
+					prevElement.ExprType().TypeID(),
+					element.ExprType().TypeID(),
+				),
+				exp.OpenBracket,
+			)
+		}
+
+		prevElement = element
+	}
+
+	exp.Type = semantics.Array{ 
+		Type: prevElement.ExprType(),
+		Length: exp.Length,
+	}
+	s.PushSymbol(s.NextAnonymIdent(), exp.Type, exp.OpenBracket)
+	exp.Symbol, _ = s.TopSymbol()
+
+	return nil
+}
+
+func (exp ArrayLiteral) EmitCode(e *codegen.Emitter) {
+	arrayType := exp.Type.(semantics.Array)
+
+	fmt.Fprintf(e, "; ArrayLiteral type = %v\n", exp.Type.TypeID())
+	fmt.Fprintf(e, "sub rsp, %v\n", exp.Symbol.Size)
+	
+	for idx, expr := range exp.Elements {
+		expr.EmitCode(e)
+		fmt.Fprintf(
+			e,
+			"mov %v [rbp - %v], %v\n",
+			arrayType.Type.ASMSize(),
+			exp.Symbol.Offset - idx * arrayType.Type.Size(),
+			arrayType.Type.Register(),
+		)
+	}
+
+	fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
+}
+
+func (exp ArrayLiteral) EmitAddressCode(e *codegen.Emitter) {
+	exp.EmitCode(e)
+}
+
+func (_ ArrayLiteral) IsAddressable() bool {
+	return true
+}
+
+func (exp ArrayLiteral) Print(indent int) string {
+	return ""
+}
+
 // A identifier expression holds an identifier's token.
 type IdentExpression struct {
 	Type   semantics.Type
@@ -724,7 +812,7 @@ func (exp GroupExpression) IsAddressable() bool {
 }
 
 func (exp GroupExpression) Print(indent int) string {
-	result := fmt.Sprintf("GroupExpression\n%v{\n", indentStr(indent))
+	result := fmt.Sprintf("; GroupExpression\n%v{\n", indentStr(indent))
 	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
 	result += exp.Expr.Print(indent + 1)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
