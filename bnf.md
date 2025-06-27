@@ -13,8 +13,8 @@
                 <assert> |
                 <expressionStmt> |
                 <typeDeclaration>
-<varDecl> ::= type ( "*" ) <arrayAccess> ident ";" | 
-              type ( "*" ) <arrayAccess> ident "=" <expression> ";"
+<varDecl> ::= type ( "*" | <arrayAccess> | "*" <arrayAccess> | <arrayAccess> "*" ) ident ";" | 
+              type ( "*" | <arrayAccess> | "*" <arrayAccess> | <arrayAccess> "*" ) ident "=" <expression> ";"
 <varDefinition> ::= <lvalue> < "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )

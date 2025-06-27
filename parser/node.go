@@ -719,6 +719,90 @@ func (exp ArrayLiteral) Print(indent int) string {
 	return ""
 }
 
+// An array access expression.
+// Example:
+//   uint32[] xs = [1, 2, 3];
+//   assert xs[1] == 2;
+type ArrayAccessExpression struct {
+	Type        semantics.Type
+	Left        Expression
+	IndexExpr   Expression
+	// For error handling.
+	OpenBracket lexer.Token
+}
+
+func (exp ArrayAccessExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *ArrayAccessExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Left.Semantics(s); err != nil {
+		return err
+	}
+
+	arrayType, ok := exp.Left.ExprType().(semantics.Array)
+	if !ok {
+		return s.AddError(
+			fmt.Sprintf(
+				"[...] array access operator can only be used on arrays but received %v",
+				exp.Left.ExprType().TypeID(),
+			),
+			exp.OpenBracket,
+		)
+	}
+
+	if err := exp.IndexExpr.Semantics(s); err != nil {
+		return err
+	}
+
+	if exp.IndexExpr.ExprType().TypeID() != semantics.UINT64 &&
+	   exp.IndexExpr.ExprType().TypeID() != semantics.UINT_LIT {
+		return s.AddError(
+			fmt.Sprintf(
+				"Expected either UINT64 or UINT_LIT as an index for array access but received %v",
+				exp.IndexExpr.ExprType().TypeID(),
+			),
+			exp.OpenBracket,
+		)
+	}
+
+	exp.Type = arrayType.Type
+
+	return nil
+}
+
+func (exp ArrayAccessExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression rvalue type = %v\n", exp.Type.TypeID())
+	exp.Left.EmitCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(
+		e,
+		"mov %v, %v [rbx + rax * %v]\n",
+		exp.Type.Register(),
+		exp.Type.ASMSize(),
+		exp.Type.Size(),
+	)
+}
+
+func (exp ArrayAccessExpression) EmitAddressCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression lvalue type = %v\n", exp.Type.TypeID())
+	exp.Left.EmitCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(e, "lea rax, [rbx + rax * %v]\n", exp.Type.Size())
+}
+
+func (_ ArrayAccessExpression) IsAddressable() bool {
+	return true
+}
+
+func (exp ArrayAccessExpression) Print(indent int) string {
+	return ""
+}
+
 // A identifier expression holds an identifier's token.
 type IdentExpression struct {
 	Type   semantics.Type
