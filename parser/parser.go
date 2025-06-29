@@ -4,6 +4,7 @@ import (
 	"clovis/lexer"
 	"clovis/semantics"
 	"fmt"
+	"strconv"
 )
 
 type ParserError struct {
@@ -90,47 +91,65 @@ func (p *Parser) parseStatement() (Statement, error) {
 	return nil, nil
 }
 
-// <varDecl> ::= ( "uint" | "bool" ) ident ( ";" | "=" <expression> ";" )
+// <varDecl> ::= <typeID> { "*" | "[" UINT_LIT "]" } IDENT ( ";" | "=" <expression> ";" )
 func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
-	varDeclStmt := &VarDeclStmt{}
-	varTypeToken := p.consume()
-	varDeclStmt.VarType = p.getType(varTypeToken.Type)
+	decl := VarDeclStmt{}
+	decl.Type = p.getType(p.consume().Type)
 
-	for p.match(lexer.STAR) {
-		p.consume() // '*'
-		varDeclStmt.VarType = semantics.Ptr{ ValueType: varDeclStmt.VarType }
+	for p.matchAny(lexer.STAR, lexer.OPEN_BRACKET) {
+		if p.match(lexer.STAR) {
+			decl.Type = semantics.Ptr{ ValueType: decl.Type }
+			p.consume() // '*'
+		} else if p.match(lexer.OPEN_BRACKET) {
+			p.consume() // '['
+
+			if !p.match(lexer.UINT_64_LIT) {
+				return nil, NewParserError(
+					p.peek(),
+					fmt.Sprintf("Expected size specifier for array declaration but received '%v'", p.consume().Value),
+				)
+			}
+			sizeToken := p.consume()
+		
+			if !p.match(lexer.CLOSE_BRACKET) {
+				return nil, NewParserError(
+					p.peek(),
+					fmt.Sprintf("Expected ']' after array declaration but received '%v'", p.consume().Value),
+				)
+			}
+			p.consume() // ']'
+			
+			arrLength, _ := strconv.Atoi(sizeToken.Value)
+			decl.Type = semantics.Array{ Base: decl.Type, Length: arrLength }
+		}
 	}
 
-	if p.match(lexer.IDENT) {
-		varDeclStmt.Ident = p.consume()
-	} else {
-		err := NewParserError(
-			p.consume(),
-			fmt.Sprintf("Expected an identifier after %v", varTypeToken.Type),
+	if !p.match(lexer.IDENT) {
+		return nil, NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an identifer after type defintion but received '%v'", p.consume().Value),
 		)
-		return nil, err
 	}
-	
+	decl.Ident = p.consume()
+
 	if p.match(lexer.ASSIGN) {
-		p.consume()
-		value, err := p.parseExpression()
+		p.consume() // '='
+		right, err := p.parseExpression()
 		if err != nil {
 			return nil, err
 		}
-		varDeclStmt.Value.SetVal(value)
+		decl.Right.SetVal(right)
 	}
 
 	if !p.match(lexer.SEMI) {
-		err := NewParserError(
+		return nil, NewParserError(
 			p.peek(),
-			fmt.Sprintf("Expected ';' after variable declaration"),
+			fmt.Sprintf("Expected ';' after variable declaration but received '%v'", p.consume().Value),
 		)
-		return nil, err
-	} else {
-		p.consume()
 	}
-	
-	return varDeclStmt, nil
+	p.consume() // ';'
+
+	return &decl, nil
 }
 
 // <varDefinition> ::= <lvalue> "=" <expression> ";"
@@ -366,16 +385,16 @@ func (p *Parser) parseTerm() (Expression, error) {
 	return left, nil
 }
 
-// <factor> ::= <unary> { ("*" | "/") <unary> }
+// <factor> ::= <prefix> { ("*" | "/") <prefix> }
 func (p *Parser) parseFactor() (Expression, error) {
-	left, err := p.parseUnary()
+	left, err := p.parsePrefix()
 	if err != nil {
 		return nil, err
 	}
 
 	for p.matchAny(lexer.STAR, lexer.F_SLASH) {
 		op := p.consume()
-		right, err := p.parseUnary()
+		right, err := p.parsePrefix()
 		if err != nil {
 			return nil, err
 		}
@@ -392,11 +411,11 @@ func (p *Parser) parseFactor() (Expression, error) {
 }
 
 // <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <primary>
-func (p *Parser) parseUnary() (Expression, error) {
+func (p *Parser) parsePrefix() (Expression, error) {
 	if p.match(lexer.STAR) {
 		derefExpr := DerefExpression{ Op: p.consume() }
 
-		right, err := p.parseUnary()
+		right, err := p.parsePrefix()
 		if err != nil {
 			return nil, err
 		}
@@ -406,7 +425,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 	} else if p.match(lexer.AMPERSAND) {
 		refExpr := ReferenceExpression{ Op: p.consume() }
 
-		right, err := p.parseUnary()
+		right, err := p.parsePrefix()
 		if err != nil {
 			return nil, err
 		}
@@ -415,7 +434,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 		return &refExpr, nil
 	} else if p.matchAny(lexer.NOT, lexer.MINUS) {
 		op := p.consume()
-		right, err := p.parseUnary()
+		right, err := p.parsePrefix()
 		if err != nil {
 			return nil, err
 		}
@@ -432,7 +451,7 @@ func (p *Parser) parseUnary() (Expression, error) {
 	return p.parsePrimary()
 }
 
-// <postfix> ::= <primary> { ( "++" | "--" | "[" <expression> "]" | <funcCall> }
+// <postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> }
 func (p *Parser) parsePostfix() (Expression, error) {
 	left, err := p.parsePrimary()
 	if err != nil {
@@ -467,6 +486,11 @@ func (p *Parser) parsePrimary() (Expression, error) {
 		)
 		return nil, err
 	}
+}
+
+// <arrayAccess> := "[" <expression> "]"
+func (p *Parser) parseArrayAccess() (Expression, error) {
+	return nil, nil
 }
 
 // <groupExpr> ::= "(" <expression> ")"

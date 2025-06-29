@@ -48,6 +48,7 @@ type SemanticChecker struct {
 
 func NewSemanticChecker() *SemanticChecker {
 	s := SemanticChecker{}
+	s.blockIndexTable.Push(0) // global scope currently
 	return &s
 }
 

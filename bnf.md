@@ -13,8 +13,7 @@
                 <assert> |
                 <expressionStmt> |
                 <typeDeclaration>
-<varDecl> ::= typeId ( "*" ) ident ";" | 
-              typeId ( "*" ) ident "=" <expression> ";"
+<varDecl> ::= <typeID> { "*" | "[" UINT_LIT "]" } IDENT ( ";" | "=" <expression> ";" )
 <varDefinition> ::= <lvalue> < "=" <expression> ";"
 <blockStmt> ::= "{" <statements> "}"
 <ifStmt> ::= "if" <expression> <statement> ( "else" <statement> )
@@ -28,12 +27,11 @@
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
 <comparison> ::= <term> { ("<" | "<=" | ">" | ">=") <term> }
 <term> ::= <factor> { ("+" | "-") <factor> }
-<factor> ::= <unary> { ("*" | "/") <unary> }
-<unary> ::= ( "!" | "-" | "*" | "&" ) <unary> | 
+<factor> ::= <prefix> { ("*" | "/") <prefix> }
+<prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | 
             <postfix>
-<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | <funcCall> }
+<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> }
 <primary> ::= <literal> | <ident> | <groupExpr>
 <arrayAccess> := "[" <expression> "]"
-<funcCall> ::= TODO
 <groupExpr> ::= "(" <expression> ")"
 ```
