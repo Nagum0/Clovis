@@ -74,11 +74,22 @@ func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 	size := s.Type.Size()
 	fmt.Fprintf(e, "sub rsp, %v\n", size)
 
-	if s.Right.HasVal() {
-		right := s.Right.Value()
-		reg := s.Type.Register()
-		asmSize := s.Type.ASMSize()
+	if !s.Right.HasVal() {
+		return
+	}
+
+	right := s.Right.Value()
+	_, isArray := right.ExprType().(semantics.Array)
+	if isArray {
 		right.EmitCode(e)
+		fmt.Fprintf(e, "mov rcx, %v\n", size) // Amount of bytes to move
+		fmt.Fprintf(e, "mov rsi, rax\n") // rsi holds the source
+		fmt.Fprintf(e, "mov rdi, [rbp - %v]\n", s.Symbol.Offset) // rdi holds the destination
+		fmt.Fprintf(e, "rep movsb\n")
+	} else {
+		right.EmitCode(e)
+		reg := right.ExprType().Register()
+		asmSize := right.ExprType().ASMSize()
 		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", asmSize, s.Symbol.Offset, reg)
 	}
 }
@@ -125,6 +136,7 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
+// TODO: Add array movement
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; ------------------------- VarDefinitionStmt -------------------------\n")
 	addr, _ := stmt.Left.(AddressableExpression)

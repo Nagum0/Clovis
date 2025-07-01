@@ -410,7 +410,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 	return left, nil
 }
 
-// <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <primary>
+// <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <postfix>
 func (p *Parser) parsePrefix() (Expression, error) {
 	if p.match(lexer.STAR) {
 		derefExpr := DerefExpression{ Op: p.consume() }
@@ -448,7 +448,7 @@ func (p *Parser) parsePrefix() (Expression, error) {
 		return un, nil
 	}
 
-	return p.parsePrimary()
+	return p.parsePostfix()
 }
 
 // <postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> }

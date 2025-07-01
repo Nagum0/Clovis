@@ -409,6 +409,7 @@ func (_ Array) ASMSize() string {
 	return "QWORD"
 }
 
+// TODO: Add size checking for Array.Equals()
 func (a Array) Equals(other Type) bool {
 	arrayType, isArray := other.(Array)
 	return (a.TypeID() == other.TypeID()) || (isArray && a.Base.TypeID() == arrayType.Base.TypeID())
