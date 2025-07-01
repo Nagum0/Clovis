@@ -88,8 +88,8 @@ func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 		fmt.Fprintf(e, "rep movsb\n")
 	} else {
 		right.EmitCode(e)
-		reg := right.ExprType().Register()
-		asmSize := right.ExprType().ASMSize()
+		reg := s.Type.Register()
+		asmSize := s.Type.ASMSize()
 		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", asmSize, s.Symbol.Offset, reg)
 	}
 }
@@ -661,10 +661,18 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
-	exp.EmitAddressCode(e)
+	fmt.Fprintf(e, "; IdentExpression rvalue type = %v\n", exp.Type.TypeID())
 	_, isArray := exp.Type.(semantics.Array)
-	if !isArray {
-		fmt.Fprintf(e, "mov %v, %v [rax]\n", exp.Type.Register(), exp.Type.ASMSize())
+	if isArray {
+		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
+	} else {
+		fmt.Fprintf(
+			e,
+			"mov %v, %v [rbp - %v]\n",
+			exp.Type.Register(),
+			exp.Type.ASMSize(),
+			exp.Symbol.Offset,
+		)
 	}
 }
 

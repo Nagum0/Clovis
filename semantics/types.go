@@ -394,7 +394,7 @@ type Array struct {
 }
 
 func (a Array) TypeID() TypeID {
-	return TypeID(fmt.Sprintf("%v_ARRAY", a.Base.TypeID()))
+	return TypeID(fmt.Sprintf("%v_ARRAY(%v)", a.Base.TypeID(), a.Length))
 }
 
 func (a Array) Size() int {
@@ -409,10 +409,9 @@ func (_ Array) ASMSize() string {
 	return "QWORD"
 }
 
-// TODO: Add size checking for Array.Equals()
 func (a Array) Equals(other Type) bool {
 	arrayType, isArray := other.(Array)
-	return (a.TypeID() == other.TypeID()) || (isArray && a.Base.TypeID() == arrayType.Base.TypeID())
+	return (a.TypeID() == other.TypeID()) || (isArray && a.Base.Equals(arrayType.Base))
 }
 
 func (a Array) CanUseOperator(op string, operand Type) (bool, Type) {
