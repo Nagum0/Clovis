@@ -136,20 +136,31 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 	return nil
 }
 
-// TODO: Add array movement
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; ------------------------- VarDefinitionStmt -------------------------\n")
+
 	addr, _ := stmt.Left.(AddressableExpression)
 	addr.EmitAddressCode(e)
 	fmt.Fprintf(e, "push rax\n")
-	stmt.Right.EmitCode(e)
-	fmt.Fprintf(e, "pop rbx\n")
-	fmt.Fprintf(
-		e, 
-		"mov %v [rbx], %v\n",
-		addr.ExprType().ASMSize(),
-		addr.ExprType().Register(),
-	)
+
+	_, isArray := stmt.Right.ExprType().(semantics.Array)
+	if isArray {
+		stmt.Right.EmitCode(e)
+		size := stmt.Right.ExprType().Size()
+		fmt.Fprintf(e, "mov rcx, %v\n", size)
+		fmt.Fprintf(e, "mov rsi, rax\n")
+		fmt.Fprintf(e, "pop rdi\n")
+		fmt.Fprintf(e, "rep movsb\n")
+	} else {
+		stmt.Right.EmitCode(e)
+		fmt.Fprintf(e, "pop rbx\n")
+		fmt.Fprintf(
+			e, 
+			"mov %v [rbx], %v\n",
+			addr.ExprType().ASMSize(),
+			addr.ExprType().Register(),
+		)
+	}
 }
 
 func (stmt VarDefinitionStmt) Print(indent int) string {
