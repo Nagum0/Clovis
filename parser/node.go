@@ -27,70 +27,75 @@ type Statement interface {
 
 // Variable declaration statement.
 type VarDeclStmt struct {
-	// The declared variables type.
-	VarType semantics.Type
-	// The variable's identifier.
-	Ident	lexer.Token
-	// An optional initializer value.
-	// Can be any type of expression.
-	Value	utils.Optional[Expression]
-	// Used by the code emitter to get the symbol data.
-	Symbol  semantics.Symbol
+	Type   semantics.Type
+	Ident  lexer.Token
+	Right  utils.Optional[Expression]
+	Symbol semantics.Symbol
 }
 
 func (stmt *VarDeclStmt) Semantics(s *semantics.SemanticChecker) error {
-	if stmt.Value.HasVal() {
-		if err := stmt.Value.Value().Semantics(s); err != nil {
+	if stmt.Right.HasVal() {
+		right := stmt.Right.Value()
+		if err := right.Semantics(s); err != nil {
 			return err
 		}
-		
-		// Check type correctness
-		if !(semantics.IsNumber(stmt.VarType) && semantics.IsNumber(stmt.Value.Value().ExprType())) && 
-		   !(stmt.VarType.TypeID() == stmt.Value.Value().ExprType().TypeID()) {
+
+		if !stmt.Type.Equals(right.ExprType()) {
 			return s.AddError(
 				fmt.Sprintf(
-					"Declared type %v and initialized value type %v do not match",
-					stmt.VarType.TypeID(),
-					stmt.Value.Value().ExprType().TypeID(),
+					"Variable type %v and right side type %v do not match",
+					stmt.Type.TypeID(),
+					right.ExprType().TypeID(),
 				),
 				stmt.Ident,
 			)
 		}
 	}
 
-	if err := s.PushSymbol(stmt.Ident.Value, stmt.VarType, stmt.Ident); err != nil {
+	if err := s.PushSymbol(stmt.Ident.Value, stmt.Type, stmt.Ident); err != nil {
 		return err
 	}
-
 	stmt.Symbol, _ = s.TopSymbol()
 
 	return nil
 }
 
 func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ------------------------- VarDeclStmt -------------------------\n")
 	fmt.Fprintf(
 		e,
-		"; ------------------------- VarDeclStmt: %v type = %v -------------------------\n",
-		s.Ident.Value, s.VarType.TypeID(),
+		"; type = %v ident = %v offset = %v size = %v\n",
+		s.Type.TypeID(),
+		s.Ident.Value,
+		s.Symbol.Offset,
+		s.Type.Size(),
 	)
-	fmt.Fprintf(e, "sub rsp, %v\n", s.VarType.Size())
-	
-	if s.Value.HasVal() {
-		s.Value.Value().EmitCode(e)
-		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", s.VarType.ASMSize(), s.Symbol.Offset, s.VarType.Register())
+
+	size := s.Type.Size()
+	fmt.Fprintf(e, "sub rsp, %v\n", size)
+
+	if !s.Right.HasVal() {
+		return
+	}
+
+	right := s.Right.Value()
+	_, isArray := right.ExprType().(semantics.Array)
+	if isArray {
+		right.EmitCode(e)
+		fmt.Fprintf(e, "mov rcx, %v\n", size) // Amount of bytes to move
+		fmt.Fprintf(e, "mov rsi, rax\n") // rsi holds the source
+		fmt.Fprintf(e, "lea rdi, [rbp - %v]\n", s.Symbol.Offset) // rdi holds the destination
+		fmt.Fprintf(e, "rep movsb\n")
+	} else {
+		right.EmitCode(e)
+		reg := s.Type.Register()
+		asmSize := s.Type.ASMSize()
+		fmt.Fprintf(e, "mov %v [rbp - %v], %v\n", asmSize, s.Symbol.Offset, reg)
 	}
 }
 
 func (s VarDeclStmt) Print(indent int) string {
-	result := fmt.Sprintf("%vVarDeclStmt\n%v{\n", indentStr(indent), indentStr(indent))
-	result += fmt.Sprintf("%vVarType: %v\n", indentStr(indent + 1), s.VarType)
-	result += fmt.Sprintf("%vIdent: %v\n", indentStr(indent + 1), s.Ident.Value)
-
-	if s.Value.HasVal() {
-		result += fmt.Sprintf("%v", s.Value.Value().Print(indent + 1))
-	}
-
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+	return ""
 }
 
 // A variable definition statement.
@@ -133,17 +138,29 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 
 func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; ------------------------- VarDefinitionStmt -------------------------\n")
+
 	addr, _ := stmt.Left.(AddressableExpression)
 	addr.EmitAddressCode(e)
 	fmt.Fprintf(e, "push rax\n")
-	stmt.Right.EmitCode(e)
-	fmt.Fprintf(e, "pop rbx\n")
-	fmt.Fprintf(
-		e, 
-		"mov %v [rbx], %v\n",
-		addr.ExprType().ASMSize(),
-		addr.ExprType().Register(),
-	)
+
+	_, isArray := stmt.Right.ExprType().(semantics.Array)
+	if isArray {
+		stmt.Right.EmitCode(e)
+		size := stmt.Right.ExprType().Size()
+		fmt.Fprintf(e, "mov rcx, %v\n", size)
+		fmt.Fprintf(e, "mov rsi, rax\n")
+		fmt.Fprintf(e, "pop rdi\n")
+		fmt.Fprintf(e, "rep movsb\n")
+	} else {
+		stmt.Right.EmitCode(e)
+		fmt.Fprintf(e, "pop rbx\n")
+		fmt.Fprintf(
+			e, 
+			"mov %v [rbx], %v\n",
+			addr.ExprType().ASMSize(),
+			addr.ExprType().Register(),
+		)
+	}
 }
 
 func (stmt VarDefinitionStmt) Print(indent int) string {
@@ -161,15 +178,16 @@ func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
 	s.PushBlock()
 	
 	for _, innerStmt := range stmt.Statements {
+		// TODO: Implement better logging here
 		innerStmt.Semantics(s)
 	}
-
+	
 	stmt.BlockSize = s.PopBlock()
 	return nil
 }
 
 func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(e, "; ------------------------- BlockStmt: Size = %v -------------------------", stmt.BlockSize)
+	fmt.Fprintf(e, "; ------------------------- BlockStmt: Size = %v -------------------------\n", stmt.BlockSize)
 	for _, innerStmt := range stmt.Statements {
 		innerStmt.EmitCode(e)
 	}
@@ -588,6 +606,75 @@ func (exp ReferenceExpression) Print(indent int) string {
 	return ""
 }
 
+// An array access expression.
+// Example:
+//  uint32[3] xs;
+//  xs[1] = 2;
+//  assert xs[1] == 2;
+type ArrayAccessExpression struct {
+	Type        semantics.Type
+	Left        Expression
+	IndexExpr   Expression
+	// For error handling.
+	OpenBracket lexer.Token
+}
+
+func (exp ArrayAccessExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *ArrayAccessExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Left.Semantics(s); err != nil {
+		return err
+	}
+
+	array, isArray := exp.Left.ExprType().(semantics.Array)
+	if !isArray {
+		return s.AddError(
+			fmt.Sprintf(
+				"'[]' operator can be only used on arrays but received %v",
+				exp.Left.ExprType().TypeID(),
+			),
+			exp.OpenBracket,
+		)
+	}
+	exp.Type = array.Base
+
+	return nil
+}
+
+func (exp ArrayAccessExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression rvalue type = %v\n", exp.Type)
+	addrExp, _ := exp.Left.(AddressableExpression)
+	addrExp.EmitAddressCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "mov rbx, %v\n", exp.Type.Size())
+	fmt.Fprintf(e, "mul rbx\n")
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(e, "mov %v, %v [rbx + rax]\n", exp.Type.Register(), exp.Type.ASMSize())
+}
+
+func (exp ArrayAccessExpression) EmitAddressCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression lvalue type = %v\n", exp.Type)
+	addrExp, _ := exp.Left.(AddressableExpression)
+	addrExp.EmitAddressCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "mov rbx, %v\n", exp.Type.Size())
+	fmt.Fprintf(e, "mul rbx\n")
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(e, "lea rax, [rbx + rax]\n")
+}
+
+func (_ ArrayAccessExpression) IsAddressable() bool {
+	return true
+}
+
+func (exp ArrayAccessExpression) Print(indent int) string {
+	return ""
+}
+
 // A literal expression holds a literal.
 type LiteralExpression struct {
 	Type  semantics.Type
@@ -635,7 +722,6 @@ func (exp LiteralExpression) Print(indent int) string {
 type IdentExpression struct {
 	Type   semantics.Type
 	Ident  lexer.Token
-	// Used during code generation for symbol data.
 	Symbol semantics.Symbol
 }
 
@@ -648,32 +734,30 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err != nil {
 		return err
 	}
-
-	exp.Type = symbol.Type
 	exp.Symbol = *symbol
+	exp.Type = symbol.Type
 
 	return nil
 }
 
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
-	fmt.Fprintf(
-		e,
-		"; IdentExpression %v type = %v offset = %v\n",
-		exp.Ident.Value, exp.Type.TypeID(), exp.Symbol.Offset,
-	)
-	fmt.Fprintf(
-		e,
-		"xor rax, rax\nmov %v, %v [rbp - %v]\n",
-		exp.Type.Register(), exp.Type.ASMSize(), exp.Symbol.Offset,
-	)
+	fmt.Fprintf(e, "; IdentExpression rvalue type = %v\n", exp.Type.TypeID())
+	_, isArray := exp.Type.(semantics.Array)
+	if isArray {
+		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
+	} else {
+		fmt.Fprintf(
+			e,
+			"mov %v, %v [rbp - %v]\n",
+			exp.Type.Register(),
+			exp.Type.ASMSize(),
+			exp.Symbol.Offset,
+		)
+	}
 }
 
 func (exp IdentExpression) EmitAddressCode(e *codegen.Emitter) {
-	fmt.Fprintf(
-		e, 
-		"; IdentExpression %v lea\n",
-		exp.Ident.Value,
-	)
+	fmt.Fprintf(e, "; IdentExpression lvalue type = %v\n", exp.Type.TypeID())
 	fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
 }
 
