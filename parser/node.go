@@ -84,7 +84,7 @@ func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 		right.EmitCode(e)
 		fmt.Fprintf(e, "mov rcx, %v\n", size) // Amount of bytes to move
 		fmt.Fprintf(e, "mov rsi, rax\n") // rsi holds the source
-		fmt.Fprintf(e, "mov rdi, [rbp - %v]\n", s.Symbol.Offset) // rdi holds the destination
+		fmt.Fprintf(e, "lea rdi, [rbp - %v]\n", s.Symbol.Offset) // rdi holds the destination
 		fmt.Fprintf(e, "rep movsb\n")
 	} else {
 		right.EmitCode(e)
@@ -603,6 +603,75 @@ func (exp ReferenceExpression) IsAddressable() bool {
 }
 
 func (exp ReferenceExpression) Print(indent int) string {
+	return ""
+}
+
+// An array access expression.
+// Example:
+//  uint32[3] xs;
+//  xs[1] = 2;
+//  assert xs[1] == 2;
+type ArrayAccessExpression struct {
+	Type        semantics.Type
+	Left        Expression
+	IndexExpr   Expression
+	// For error handling.
+	OpenBracket lexer.Token
+}
+
+func (exp ArrayAccessExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *ArrayAccessExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Left.Semantics(s); err != nil {
+		return err
+	}
+
+	array, isArray := exp.Left.ExprType().(semantics.Array)
+	if !isArray {
+		return s.AddError(
+			fmt.Sprintf(
+				"'[]' operator can be only used on arrays but received %v",
+				exp.Left.ExprType().TypeID(),
+			),
+			exp.OpenBracket,
+		)
+	}
+	exp.Type = array.Base
+
+	return nil
+}
+
+func (exp ArrayAccessExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression rvalue type = %v\n", exp.Type)
+	addrExp, _ := exp.Left.(AddressableExpression)
+	addrExp.EmitAddressCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "mov rbx, %v\n", exp.Type.Size())
+	fmt.Fprintf(e, "mul rbx\n")
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(e, "mov %v, %v [rbx + rax]\n", exp.Type.Register(), exp.Type.ASMSize())
+}
+
+func (exp ArrayAccessExpression) EmitAddressCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ArrayAccessExpression lvalue type = %v\n", exp.Type)
+	addrExp, _ := exp.Left.(AddressableExpression)
+	addrExp.EmitAddressCode(e)
+	fmt.Fprintf(e, "push rax\n")
+	exp.IndexExpr.EmitCode(e)
+	fmt.Fprintf(e, "mov rbx, %v\n", exp.Type.Size())
+	fmt.Fprintf(e, "mul rbx\n")
+	fmt.Fprintf(e, "pop rbx\n")
+	fmt.Fprintf(e, "lea rax, [rbx + rax]\n")
+}
+
+func (_ ArrayAccessExpression) IsAddressable() bool {
+	return true
+}
+
+func (exp ArrayAccessExpression) Print(indent int) string {
 	return ""
 }
 

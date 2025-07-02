@@ -72,7 +72,7 @@ func (p *Parser) parseStatements() []Statement {
 func (p *Parser) parseStatement() (Statement, error) {
 	if p.matchAny(lexer.UINT_64, lexer.UINT_32, lexer.UINT_16, lexer.UINT_8, lexer.BOOL) {
 		return p.parseVarDecl()
-	} else if p.matchAny(lexer.STAR, lexer.IDENT) {
+	} else if p.matchAny(lexer.STAR, lexer.IDENT, lexer.OPEN_PAREN) {
 		return p.parseVarDefinition()
 	} else if p.match(lexer.OPEN_CURLY) {
 		return p.parseBlockStmt()
@@ -458,7 +458,16 @@ func (p *Parser) parsePostfix() (Expression, error) {
 		return nil, err
 	}
 	
-	// TODO: Implement postfix operator parsing
+	// TODO: ++ and -- postfix operators
+	for p.match(lexer.OPEN_BRACKET) {
+		expr, err := p.parseArrayAccess()
+		if err != nil {
+			return nil, err
+		}
+		arrayAccessExpr := expr.(*ArrayAccessExpression)
+		arrayAccessExpr.Left = left
+		left = arrayAccessExpr
+	}
 
 	return left, nil
 }
@@ -490,7 +499,26 @@ func (p *Parser) parsePrimary() (Expression, error) {
 
 // <arrayAccess> := "[" <expression> "]"
 func (p *Parser) parseArrayAccess() (Expression, error) {
-	return nil, nil
+	arrayAccessExpr := ArrayAccessExpression{ 
+		Type: semantics.Undefined{},
+		OpenBracket: p.consume(),
+	}
+
+	indexExpr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	arrayAccessExpr.IndexExpr = indexExpr
+
+	if !p.match(lexer.CLOSE_BRACKET) {
+		return nil, NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ']' after array access but received '%v'", p.peek().Value),
+		)
+	}
+	p.consume() // ']'
+
+	return &arrayAccessExpr, nil
 }
 
 // <groupExpr> ::= "(" <expression> ")"

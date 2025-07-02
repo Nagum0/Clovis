@@ -415,6 +415,14 @@ func (a Array) Equals(other Type) bool {
 }
 
 func (a Array) CanUseOperator(op string, operand Type) (bool, Type) {
+	if !a.Equals(operand) {
+		return false, Undefined{}
+	}
+
+	if op == "=" {
+		return true, operand
+	}
+
 	return false, Undefined{}
 }
 
