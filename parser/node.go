@@ -82,8 +82,8 @@ func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 	_, isArray := right.ExprType().(semantics.Array)
 	if isArray {
 		right.EmitCode(e)
-		fmt.Fprintf(e, "mov rcx, %v\n", size) // Amount of bytes to move
-		fmt.Fprintf(e, "mov rsi, rax\n") // rsi holds the source
+		fmt.Fprintf(e, "mov rcx, %v\n", size)                    // Amount of bytes to move
+		fmt.Fprintf(e, "mov rsi, rax\n")                         // rsi holds the source
 		fmt.Fprintf(e, "lea rdi, [rbp - %v]\n", s.Symbol.Offset) // rdi holds the destination
 		fmt.Fprintf(e, "rep movsb\n")
 	} else {
@@ -125,14 +125,14 @@ func (stmt *VarDefinitionStmt) Semantics(s *semantics.SemanticChecker) error {
 	if l, _ := stmt.Left.ExprType().CanUseOperator("=", stmt.Right.ExprType()); !l {
 		return s.AddError(
 			fmt.Sprintf(
-				"Cannot assign type %v to address with type %v", 
+				"Cannot assign type %v to address with type %v",
 				stmt.Right.ExprType().TypeID(),
 				stmt.Left.ExprType().TypeID(),
 			),
 			stmt.Op,
 		)
 	}
-	
+
 	return nil
 }
 
@@ -155,7 +155,7 @@ func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 		stmt.Right.EmitCode(e)
 		fmt.Fprintf(e, "pop rbx\n")
 		fmt.Fprintf(
-			e, 
+			e,
 			"mov %v [rbx], %v\n",
 			addr.ExprType().ASMSize(),
 			addr.ExprType().Register(),
@@ -171,17 +171,17 @@ func (stmt VarDefinitionStmt) Print(indent int) string {
 type BlockStmt struct {
 	Statements []Statement
 	// The size of the symbols declared inside this block.
-	BlockSize  int
+	BlockSize int
 }
 
 func (stmt *BlockStmt) Semantics(s *semantics.SemanticChecker) error {
 	s.PushBlock()
-	
+
 	for _, innerStmt := range stmt.Statements {
 		// TODO: Implement better logging here
 		innerStmt.Semantics(s)
 	}
-	
+
 	stmt.BlockSize = s.PopBlock()
 	return nil
 }
@@ -198,18 +198,7 @@ func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
 // TODO: Add symbol data info for block statement printing
 // FIXME: Fix BlockStmt pretty printing.
 func (stmt BlockStmt) Print(indent int) string {
-	b := strings.Builder{}
-
-	fmt.Fprintf(&b, "\n%vBlockStmt\n%v{\n", indentStr(indent), indentStr(indent))
-	fmt.Fprintf(&b, "%vBlockSize: %v\n", indentStr(indent + 1), stmt.BlockSize)
-	fmt.Fprintf(&b, "%vStatements: \n", indentStr(indent + 1))
-
-	for _, s := range stmt.Statements {
-		fmt.Fprintf(&b, "%v,", s.Print(indent + 1))
-	}
-
-	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
-	return b.String()
+	return ""
 }
 
 // If statement.
@@ -217,7 +206,7 @@ type IfStmt struct {
 	// The if token. Used for error handling.
 	IfToken   lexer.Token
 	Condition Expression
-	Stmt	  Statement
+	Stmt      Statement
 	ElseStmt  utils.Optional[Statement]
 }
 
@@ -261,7 +250,7 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) {
 	endLabel := e.NextLabel()
 	fmt.Fprintf(e, "jmp %v\n", endLabel)
 	fmt.Fprintf(e, "%v:\n", falseLabel)
-	
+
 	if stmt.ElseStmt.HasVal() {
 		stmt.ElseStmt.Value().EmitCode(e)
 	}
@@ -270,14 +259,7 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) {
 }
 
 func (stmt IfStmt) Print(indent int) string {
-	b := strings.Builder{}
-
-	fmt.Fprintf(&b, "\n%vIfStmt\n%v{", indentStr(indent), indentStr(indent))
-	fmt.Fprintf(&b, "%v\n", stmt.Condition.Print(indent + 1))
-	fmt.Fprintf(&b, "%v\n", stmt.Stmt.Print(indent + 1))
-	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
-
-	return b.String()
+	return ""
 }
 
 // Assert statement.
@@ -313,13 +295,7 @@ func (stmt AssertStmt) EmitCode(e *codegen.Emitter) {
 }
 
 func (stmt AssertStmt) Print(indent int) string {
-	b := strings.Builder{}
-	
-	fmt.Fprintf(&b, "\n%vAssertStmt\n%v{\n", indentStr(indent), indentStr(indent))
-	fmt.Fprintf(&b, "%v\n", stmt.Expr.Print(indent + 1))
-	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
-
-	return b.String()
+	return ""
 }
 
 // Expression statement.
@@ -336,13 +312,7 @@ func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) {
 }
 
 func (stmt ExpressionStmt) Print(indent int) string {
-	b := strings.Builder{}
-
-	fmt.Fprintf(&b, "\n%vExpressionStmt\n%v{\n", indentStr(indent), indentStr(indent))
-	fmt.Fprintf(&b, "%v\n", stmt.Expr.Print(indent + 1))
-	fmt.Fprintf(&b, "\n%v}", indentStr(indent))
-
-	return b.String()
+	return ""
 }
 
 // This interface represents an expression in the language.
@@ -374,7 +344,7 @@ type AddressableExpression interface {
 type BinaryExpression struct {
 	Type  semantics.Type
 	Left  Expression
-	Op	  lexer.Token
+	Op    lexer.Token
 	Right Expression
 }
 
@@ -390,21 +360,21 @@ func (exp *BinaryExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Right.Semantics(s); err != nil {
 		return err
 	}
-		
+
 	l, t := exp.Left.ExprType().CanUseOperator(exp.Op.Value, exp.Right.ExprType())
 	if !l {
 		return s.AddError(
 			fmt.Sprintf(
-				"Cannot use operator '%v' between types %v and %v", 
+				"Cannot use operator '%v' between types %v and %v",
 				exp.Op.Value,
-				exp.Left.ExprType().TypeID(), 
+				exp.Left.ExprType().TypeID(),
 				exp.Right.ExprType().TypeID(),
 			),
 			exp.Op,
 		)
 	}
 	exp.Type = t
-	
+
 	return nil
 }
 
@@ -415,7 +385,7 @@ func (exp BinaryExpression) EmitCode(e *codegen.Emitter) {
 	e.WriteString("push rax\n")
 	exp.Left.EmitCode(e)
 	e.WriteString("pop rbx\n")
-	
+
 	// TODO: Clean up the binary operation logic
 	binOp := codegen.ASMBinaryOp(exp.Op)
 	if binOp == "add" || binOp == "sub" {
@@ -428,24 +398,19 @@ func (exp BinaryExpression) EmitCode(e *codegen.Emitter) {
 	}
 }
 
-func (_ BinaryExpression) IsAddressable() bool {
+func (BinaryExpression) IsAddressable() bool {
 	return false
 }
 
 func (exp BinaryExpression) Print(indent int) string {
-	result := fmt.Sprintf("BinaryExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
-	result += fmt.Sprintf("%v\n", exp.Left.Print(indent + 1))
-	result += fmt.Sprintf("%vOp: %v\n", indentStr(indent + 1), exp.Op)
-	result += fmt.Sprintf("%v", exp.Right.Print(indent + 1))
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+	return ""
 }
 
 // A prefix expression holds a unary operator and a right value.
 type PrefixExpression struct {
 	Type        semantics.Type
-	Op    	    lexer.Token
-	Right 	    Expression
+	Op          lexer.Token
+	Right       Expression
 	Addressable bool
 }
 
@@ -469,8 +434,8 @@ func (exp PrefixExpression) IsAddressable() bool {
 
 func (exp PrefixExpression) Print(indent int) string {
 	result := fmt.Sprintf("PrefixExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
-	result += fmt.Sprintf("%vOp: %v\n", indentStr(indent + 1), exp.Op)
+	result += fmt.Sprintf("%vType: %v\n", indentStr(indent+1), exp.Type)
+	result += fmt.Sprintf("%vOp: %v\n", indentStr(indent+1), exp.Op)
 	result += exp.Right.Print(indent + 1)
 	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
 }
@@ -493,7 +458,7 @@ func (exp *PostfixExpression) Semantics(s *semantics.SemanticChecker) error {
 }
 
 func (exp PostfixExpression) EmitCode(e *codegen.Emitter) {
-	
+
 }
 
 func (exp PostfixExpression) IsAddressable() bool {
@@ -506,12 +471,13 @@ func (exp PostfixExpression) Print(indent int) string {
 
 // A dereference expression.
 // Example:
-//	uint32 y = *x; // *x returns the value (rvalue) stored at the location where x is pointing to
-//  *x = 69; // Moves value 69 to the location x is pointing to (here *x returns an lvalue)
+//
+//		uint32 y = *x; // *x returns the value (rvalue) stored at the location where x is pointing to
+//	 *x = 69; // Moves value 69 to the location x is pointing to (here *x returns an lvalue)
 type DerefExpression struct {
-	Type   semantics.Type
-	Op     lexer.Token
-	Right  Expression
+	Type  semantics.Type
+	Op    lexer.Token
+	Right Expression
 }
 
 func (exp DerefExpression) ExprType() semantics.Type {
@@ -522,19 +488,19 @@ func (exp *DerefExpression) Semantics(s *semantics.SemanticChecker) error {
 	if err := exp.Right.Semantics(s); err != nil {
 		return err
 	}
-	
+
 	ptr, isPtr := exp.Right.ExprType().(semantics.Ptr)
 	if !isPtr {
 		return s.AddError(
-			 fmt.Sprintf(
-				 "'*' dereference operator expected a PTR not %v", 
-				 exp.Right.ExprType().TypeID(),
-			 ),
-			 exp.Op,
+			fmt.Sprintf(
+				"'*' dereference operator expected a PTR not %v",
+				exp.Right.ExprType().TypeID(),
+			),
+			exp.Op,
 		)
 	}
 	exp.Type = ptr.ValueType
-	
+
 	return nil
 }
 
@@ -559,6 +525,7 @@ func (exp DerefExpression) Print(indent int) string {
 
 // A refence expression.
 // Example:
+//
 //	uint32* xPtr = &x; // &x returns the address of x
 type ReferenceExpression struct {
 	Type  semantics.Type
@@ -582,7 +549,7 @@ func (exp *ReferenceExpression) Semantics(s *semantics.SemanticChecker) error {
 		)
 	}
 
-	exp.Type = semantics.Ptr{ ValueType: exp.Right.ExprType() }
+	exp.Type = semantics.Ptr{ValueType: exp.Right.ExprType()}
 
 	return nil
 }
@@ -608,13 +575,14 @@ func (exp ReferenceExpression) Print(indent int) string {
 
 // An array access expression.
 // Example:
-//  uint32[3] xs;
-//  xs[1] = 2;
-//  assert xs[1] == 2;
+//
+//	uint32[3] xs;
+//	xs[1] = 2;
+//	assert xs[1] == 2;
 type ArrayAccessExpression struct {
-	Type        semantics.Type
-	Left        Expression
-	IndexExpr   Expression
+	Type      semantics.Type
+	Left      Expression
+	IndexExpr Expression
 	// For error handling.
 	OpenBracket lexer.Token
 }
@@ -667,7 +635,7 @@ func (exp ArrayAccessExpression) EmitAddressCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "lea rax, [rbx + rax]\n")
 }
 
-func (_ ArrayAccessExpression) IsAddressable() bool {
+func (ArrayAccessExpression) IsAddressable() bool {
 	return true
 }
 
@@ -696,13 +664,11 @@ func (exp LiteralExpression) EmitCode(e *codegen.Emitter) {
 		switch exp.Value.Value {
 		case "true":
 			value = "1"
-			break
 		case "false":
 			value = "0"
-			break
 		}
 	}
-	
+
 	fmt.Fprintf(e, "; LiteralExpression: type = %v value = %v\n", exp.Type.TypeID(), value)
 	fmt.Fprintf(e, "mov rax, %v\n", value)
 }
@@ -712,10 +678,7 @@ func (exp LiteralExpression) IsAddressable() bool {
 }
 
 func (exp LiteralExpression) Print(indent int) string {
-	result := fmt.Sprintf("LiteralExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
-	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), exp.Value)
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+	return ""
 }
 
 // A identifier expression holds an identifier's token.
@@ -766,10 +729,7 @@ func (exp IdentExpression) IsAddressable() bool {
 }
 
 func (exp IdentExpression) Print(indent int) string {
-	result := fmt.Sprintf("IdentExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type.TypeID())
-	result += fmt.Sprintf("%vValue: %v", indentStr(indent + 1), exp.Ident.Value)
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+	return ""
 }
 
 // A group expression holds an internal expression.
@@ -804,12 +764,9 @@ func (exp GroupExpression) EmitAddressCode(e *codegen.Emitter) {
 }
 
 func (exp GroupExpression) IsAddressable() bool {
-	return exp.IsAddressable()
+	return exp.Expr.IsAddressable()
 }
 
 func (exp GroupExpression) Print(indent int) string {
-	result := fmt.Sprintf("GroupExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent + 1), exp.Type)
-	result += exp.Expr.Print(indent + 1)
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
+	return ""
 }

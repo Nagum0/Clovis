@@ -13,7 +13,7 @@ type SemanticError struct {
 
 func NewSemanticError(msg string, token lexer.Token) *SemanticError {
 	return &SemanticError{
-		msg: msg,
+		msg:   msg,
 		token: token,
 	}
 }
@@ -40,10 +40,10 @@ func (s Symbol) String() string {
 // The SemanticChecker is used to analyze the statements and expressions
 // to ensure their correctness.
 type SemanticChecker struct {
-	Errors			[]error
+	Errors          []error
 	symbolTable     utils.Stack[Symbol]
 	blockIndexTable utils.Stack[int]
-	nextAddr		int
+	nextAddr        int
 }
 
 func NewSemanticChecker() *SemanticChecker {
@@ -77,11 +77,11 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 
 	symbolSize := symbolType.Size()
 	symbol := &Symbol{
-		Ident: ident,
-		Type: symbolType,
-		Token: token,
+		Ident:  ident,
+		Type:   symbolType,
+		Token:  token,
 		Offset: s.nextAddr + symbolSize,
-		Size: symbolSize,
+		Size:   symbolSize,
 	}
 	s.nextAddr += symbolSize
 	s.symbolTable.Push(*symbol)
@@ -92,7 +92,6 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 func (s *SemanticChecker) TopSymbol() (Symbol, error) {
 	return s.symbolTable.Top()
 }
-
 
 func (s *SemanticChecker) PushBlock() {
 	blockStartIndex := s.symbolTable.Size
@@ -105,7 +104,7 @@ func (s *SemanticChecker) PopBlock() int {
 	if s.blockIndexTable.Size == 0 {
 		return 0
 	}
-	
+
 	size := 0
 	topBlockIndex, _ := s.blockIndexTable.Pop()
 	symbolTableData := s.symbolTable.Data()
@@ -137,7 +136,7 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	symbolTableData := s.symbolTable.Data()
 	for i := len(symbolTableData) - 1; i >= topBlockIndex; i-- {
 		symbol := symbolTableData[i]
@@ -145,16 +144,16 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 func align16(x int) int {
-    remainder := x % 16
+	remainder := x % 16
 
-    if remainder == 0 {
-        return x
-    }
+	if remainder == 0 {
+		return x
+	}
 
-    return x + (16 - remainder)
+	return x + (16 - remainder)
 }

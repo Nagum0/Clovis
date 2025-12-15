@@ -5,15 +5,16 @@ import "fmt"
 // A unique type identifier represented as a string.
 // Often times the name of the given type.
 type TypeID string
+
 const (
 	UNDEFINED TypeID = "UNDEFINED"
-	PTR TypeID = "PTR"
-	UINT_LIT TypeID = "UINT_LIT"
-	UINT64 TypeID = "UINT64"
-	UINT32 TypeID = "UINT32"
-	UINT16 TypeID = "UINT16"
-	UINT8 TypeID = "UINT8"
-	BOOL TypeID = "BOOL"
+	PTR       TypeID = "PTR"
+	UINT_LIT  TypeID = "UINT_LIT"
+	UINT64    TypeID = "UINT64"
+	UINT32    TypeID = "UINT32"
+	UINT16    TypeID = "UINT16"
+	UINT8     TypeID = "UINT8"
+	BOOL      TypeID = "BOOL"
 )
 
 // Any type implementing this interface can be used as a type in the compiler.
@@ -28,61 +29,61 @@ type Type interface {
 	ASMSize() string
 	// Return whether the current type and the other type are equal.
 	Equals(other Type) bool
-	// Checks whether a given binary operator can be used on the given type and 
+	// Checks whether a given binary operator can be used on the given type and
 	// returns the result type after the operation.
 	CanUseOperator(op string, operand Type) (bool, Type)
-	// Checks whether a given unary operator can be used on the given type and 
+	// Checks whether a given unary operator can be used on the given type and
 	// returns the result type after the operation.
 	CanUseUnaryOperator(op string) (bool, Type)
 }
 
 // This type is used during parsing where the specific type cannot be deduced yet.
-type Undefined struct {}
+type Undefined struct{}
 
-func (_ Undefined) TypeID() TypeID {
+func (Undefined) TypeID() TypeID {
 	return UNDEFINED
 }
 
-func (_ Undefined) Size() int {
+func (Undefined) Size() int {
 	return 8
 }
 
-func (_ Undefined) Register() string {
+func (Undefined) Register() string {
 	return "rax"
 }
 
-func (_ Undefined) ASMSize() string {
+func (Undefined) ASMSize() string {
 	return ""
 }
 
-func (_ Undefined) Equals(other Type) bool {
+func (Undefined) Equals(other Type) bool {
 	return false
 }
 
-func (_ Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Undefined) CanUseUnaryOperator(op string) (bool, Type) {
+func (Undefined) CanUseUnaryOperator(op string) (bool, Type) {
 	return false, Undefined{}
 }
 
 // Represents a unsigned integer literal.
-type UintLiteral struct {}
+type UintLiteral struct{}
 
-func (_ UintLiteral) TypeID() TypeID {
+func (UintLiteral) TypeID() TypeID {
 	return UINT_LIT
 }
 
-func (_ UintLiteral) Size() int {
+func (UintLiteral) Size() int {
 	return 8
 }
 
-func (_ UintLiteral) Register() string {
+func (UintLiteral) Register() string {
 	return "rax"
 }
 
-func (_ UintLiteral) ASMSize() string {
+func (UintLiteral) ASMSize() string {
 	return "QWORD"
 }
 
@@ -90,7 +91,7 @@ func (u UintLiteral) Equals(other Type) bool {
 	return other.TypeID() == UINT_LIT || other.TypeID() == UINT64
 }
 
-func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
+func (UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
 	if !IsNumber(operand) {
 		return false, Undefined{}
 	}
@@ -105,26 +106,26 @@ func (_ UintLiteral) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ UintLiteral) CanUseUnaryOperator(op string) (bool, Type) {
+func (UintLiteral) CanUseUnaryOperator(op string) (bool, Type) {
 	return false, Undefined{}
 }
 
 // Unsigned 64 bit integer.
-type Uint64 struct {}
+type Uint64 struct{}
 
-func (_ Uint64) TypeID() TypeID {
+func (Uint64) TypeID() TypeID {
 	return UINT64
 }
 
-func (_ Uint64) Size() int {
+func (Uint64) Size() int {
 	return 8
 }
 
-func (_ Uint64) Register() string {
+func (Uint64) Register() string {
 	return "rax"
 }
 
-func (_ Uint64) ASMSize() string {
+func (Uint64) ASMSize() string {
 	return "QWORD"
 }
 
@@ -132,7 +133,7 @@ func (u Uint64) Equals(other Type) bool {
 	return other.TypeID() == UINT64 || other.TypeID() == UINT_LIT
 }
 
-func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT64 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
 	}
@@ -147,30 +148,30 @@ func (_ Uint64) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Uint64) CanUseUnaryOperator(op string) (bool, Type) {
+func (Uint64) CanUseUnaryOperator(op string) (bool, Type) {
 	if op == "&" {
-		return true, Ptr{ ValueType: Uint64{} }
+		return true, Ptr{ValueType: Uint64{}}
 	}
 
 	return false, Undefined{}
 }
 
 // Unsigned 64 bit integer.
-type Uint32 struct {}
+type Uint32 struct{}
 
-func (_ Uint32) TypeID() TypeID {
+func (Uint32) TypeID() TypeID {
 	return UINT32
 }
 
-func (_ Uint32) Size() int {
+func (Uint32) Size() int {
 	return 4
 }
 
-func (_ Uint32) Register() string {
+func (Uint32) Register() string {
 	return "eax"
 }
 
-func (_ Uint32) ASMSize() string {
+func (Uint32) ASMSize() string {
 	return "DWORD"
 }
 
@@ -178,7 +179,7 @@ func (u Uint32) Equals(other Type) bool {
 	return other.TypeID() == UINT32 || other.TypeID() == UINT_LIT
 }
 
-func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT32 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
 	}
@@ -193,30 +194,30 @@ func (_ Uint32) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Uint32) CanUseUnaryOperator(op string) (bool, Type) {
+func (Uint32) CanUseUnaryOperator(op string) (bool, Type) {
 	if op == "&" {
-		return true, Ptr{ ValueType: Uint32{} }
+		return true, Ptr{ValueType: Uint32{}}
 	}
 
 	return false, Undefined{}
 }
 
 // Unsigned 16 bit integer.
-type Uint16 struct {}
+type Uint16 struct{}
 
-func (_ Uint16) TypeID() TypeID {
+func (Uint16) TypeID() TypeID {
 	return UINT16
 }
 
-func (_ Uint16) Size() int {
+func (Uint16) Size() int {
 	return 2
 }
 
-func (_ Uint16) Register() string {
+func (Uint16) Register() string {
 	return "ax"
 }
 
-func (_ Uint16) ASMSize() string {
+func (Uint16) ASMSize() string {
 	return "WORD"
 }
 
@@ -224,7 +225,7 @@ func (u Uint16) Equals(other Type) bool {
 	return other.TypeID() == UINT16 || other.TypeID() == UINT_LIT
 }
 
-func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT16 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
 	}
@@ -239,30 +240,30 @@ func (_ Uint16) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Uint16) CanUseUnaryOperator(op string) (bool, Type) {
+func (Uint16) CanUseUnaryOperator(op string) (bool, Type) {
 	if op == "&" {
-		return true, Ptr{ ValueType: Uint16{} }
+		return true, Ptr{ValueType: Uint16{}}
 	}
 
 	return false, Undefined{}
 }
 
 // Unsigned 8 bit integer.
-type Uint8 struct {}
+type Uint8 struct{}
 
-func (_ Uint8) TypeID() TypeID {
+func (Uint8) TypeID() TypeID {
 	return UINT8
 }
 
-func (_ Uint8) Size() int {
+func (Uint8) Size() int {
 	return 1
 }
 
-func (_ Uint8) Register() string {
+func (Uint8) Register() string {
 	return "al"
 }
 
-func (_ Uint8) ASMSize() string {
+func (Uint8) ASMSize() string {
 	return "BYTE"
 }
 
@@ -270,7 +271,7 @@ func (u Uint8) Equals(other Type) bool {
 	return other.TypeID() == UINT8 || other.TypeID() == UINT_LIT
 }
 
-func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != UINT8 && operand.TypeID() != UINT_LIT {
 		return false, Undefined{}
 	}
@@ -285,30 +286,30 @@ func (_ Uint8) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Uint8) CanUseUnaryOperator(op string) (bool, Type) {
+func (Uint8) CanUseUnaryOperator(op string) (bool, Type) {
 	if op == "&" {
-		return true, Ptr{ ValueType: Uint8{} }
+		return true, Ptr{ValueType: Uint8{}}
 	}
 
 	return false, Undefined{}
 }
 
 // A 1 byte boolean value.
-type Bool struct {}
+type Bool struct{}
 
-func (_ Bool) TypeID() TypeID {
+func (Bool) TypeID() TypeID {
 	return BOOL
 }
 
-func (_ Bool) Size() int {
+func (Bool) Size() int {
 	return 1
 }
 
-func (_ Bool) Register() string {
+func (Bool) Register() string {
 	return "al"
 }
 
-func (_ Bool) ASMSize() string {
+func (Bool) ASMSize() string {
 	return "BYTE"
 }
 
@@ -316,7 +317,7 @@ func (u Bool) Equals(other Type) bool {
 	return other.TypeID() == BOOL
 }
 
-func (_ Bool) CanUseOperator(op string, operand Type) (bool, Type) {
+func (Bool) CanUseOperator(op string, operand Type) (bool, Type) {
 	if operand.TypeID() != BOOL {
 		return false, Undefined{}
 	}
@@ -329,9 +330,9 @@ func (_ Bool) CanUseOperator(op string, operand Type) (bool, Type) {
 	return false, Undefined{}
 }
 
-func (_ Bool) CanUseUnaryOperator(op string) (bool, Type) {
+func (Bool) CanUseUnaryOperator(op string) (bool, Type) {
 	if op == "&" {
-		return true, Ptr{ ValueType: Bool{} }
+		return true, Ptr{ValueType: Bool{}}
 	}
 
 	return false, Undefined{}
@@ -346,15 +347,15 @@ func (p Ptr) TypeID() TypeID {
 	return TypeID(fmt.Sprintf("%v_PTR", p.ValueType.TypeID()))
 }
 
-func (_ Ptr) Size() int {
+func (Ptr) Size() int {
 	return 8
 }
 
-func (_ Ptr) Register() string {
+func (Ptr) Register() string {
 	return "rax"
 }
 
-func (_ Ptr) ASMSize() string {
+func (Ptr) ASMSize() string {
 	return "QWORD"
 }
 
@@ -366,7 +367,7 @@ func (p Ptr) CanUseOperator(op string, operand Type) (bool, Type) {
 	if p.TypeID() != operand.TypeID() {
 		return false, Undefined{}
 	}
-	
+
 	if op == "=" {
 		return true, p
 	}
@@ -380,7 +381,7 @@ func (p Ptr) CanUseUnaryOperator(op string) (bool, Type) {
 	}
 
 	if op == "&" {
-		return true, Ptr{ ValueType: p }
+		return true, Ptr{ValueType: p}
 	}
 
 	return false, Undefined{}
@@ -394,18 +395,18 @@ type Array struct {
 }
 
 func (a Array) TypeID() TypeID {
-	return TypeID(fmt.Sprintf("%v_ARRAY(%v)", a.Base.TypeID(), a.Length))
+	return TypeID(fmt.Sprintf("%v_ARRAY[%v]", a.Base.TypeID(), a.Length))
 }
 
 func (a Array) Size() int {
 	return a.Length * a.Base.Size()
 }
 
-func (_ Array) Register() string {
+func (Array) Register() string {
 	return "rax"
 }
 
-func (_ Array) ASMSize() string {
+func (Array) ASMSize() string {
 	return "QWORD"
 }
 
