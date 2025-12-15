@@ -19,7 +19,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Expected source file.")
 		os.Exit(1)
 	}
-	
+
 	// -- INPUT
 	input, err := os.ReadFile(args[0])
 	if err != nil {
@@ -35,7 +35,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
 	}
-	
+
 	// -- PARSING
 	parser := parser.NewParser(lexer.Tokens)
 	err = parser.Parse()
@@ -47,6 +47,10 @@ func main() {
 	}
 
 	parserLogFile, err := os.Create("plog.txt")
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 	defer parserLogFile.Close()
 
 	for _, stmt := range parser.Stmts {
@@ -57,6 +61,10 @@ func main() {
 	semantics := semantics.NewSemanticChecker()
 
 	semanticsLogFile, err := os.Create("slog.txt")
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 	defer semanticsLogFile.Close()
 
 	for _, stmt := range parser.Stmts {
@@ -67,12 +75,11 @@ func main() {
 			fmt.Println(err.Error())
 		} else {
 			log := fmt.Sprintf(
-				"-----------------------------------------------------\n\n%v\n\n%v\n-----------------------------------------------------\n", 
-				stmt.Print(0), 
+				"-----------------------------------------------------\n\n%v\n\n%v\n-----------------------------------------------------\n",
+				stmt.Print(0),
 				semantics,
 			)
 			semanticsLogFile.WriteString(log)
-			// fmt.Println(log)
 		}
 	}
 
