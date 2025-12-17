@@ -40,24 +40,28 @@ func (s Symbol) String() string {
 // The SemanticChecker is used to analyze the statements and expressions
 // to ensure their correctness.
 type SemanticChecker struct {
-	Errors          []error
-	symbolTable     utils.Stack[Symbol]
+	Errors []error
+	// Stack of symbols
+	symbolTable utils.Stack[Symbol]
+	// Holds information from which symbol each block started
 	blockIndexTable utils.Stack[int]
-	nextAddr        int
+	// Holds the next available address for each stack frame
+	stackFrames utils.Stack[int]
 }
 
 func NewSemanticChecker() *SemanticChecker {
 	s := SemanticChecker{}
 	s.blockIndexTable.Push(0) // global scope currently
+	s.stackFrames.Push(0)     // current stack frame
 	return &s
 }
 
 func (s SemanticChecker) String() string {
 	return fmt.Sprintf(
-		"SymbolTable:\n%v\nBlockIndexTable:\n%v\nnextAddr: %v\n",
+		"SymbolTable:\n%v\nBlockIndexTable:\n%v\nnextAddr:\n%v\n",
 		s.symbolTable,
 		s.blockIndexTable,
-		s.nextAddr,
+		s.stackFrames,
 	)
 }
 
@@ -75,15 +79,23 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 		)
 	}
 
+	nextAddr, err := s.stackFrames.Pop()
+	if err != nil {
+		return s.AddError(
+			"Empty stack frame",
+			token,
+		)
+	}
+
 	symbolSize := symbolType.Size()
 	symbol := &Symbol{
 		Ident:  ident,
 		Type:   symbolType,
 		Token:  token,
-		Offset: s.nextAddr + symbolSize,
+		Offset: nextAddr + symbolSize,
 		Size:   symbolSize,
 	}
-	s.nextAddr += symbolSize
+	s.stackFrames.Push(nextAddr + symbolSize)
 	s.symbolTable.Push(*symbol)
 
 	return nil

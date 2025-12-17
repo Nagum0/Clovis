@@ -12,6 +12,7 @@
                 <forStmt> |
                 <assert> |
                 <expressionStmt> |
+                <funcDeclaration> |
                 <typeDeclaration>
 <varDecl> ::= <typeID> { "*" | "[" UINT_LIT "]" } IDENT ( ";" | "=" <expression> ";" )
 <varDefinition> ::= <lvalue> < "=" <expression> ";"
@@ -22,6 +23,10 @@
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
 <expressionStmt> ::= <expression> ";"
+<funcDeclaration> ::= "fn" <ident> "(" <params> ")" "{" <statements> "}"
+<params> ::= <param> |
+             <param> "," <param>
+<param> ::= 
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
@@ -30,7 +35,7 @@
 <factor> ::= <prefix> { ("*" | "/") <prefix> }
 <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | 
             <postfix>
-<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> }
+<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> ) }
 <primary> ::= <literal> | <ident> | <groupExpr>
 <arrayAccess> := "[" <expression> "]"
 <groupExpr> ::= "(" <expression> ")"
