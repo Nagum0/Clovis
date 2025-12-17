@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 )
 
@@ -163,7 +164,7 @@ func (l *Lexer) Lex() error {
 }
 
 func (l *Lexer) emitToken(tokenType TokenType, startCol int) {
-	l.Tokens = append(l.Tokens, *NewToken(tokenType, l.buffer, l.line, startCol))
+	l.Tokens = append(l.Tokens, *NewToken(tokenType, strings.TrimSpace(l.buffer), l.line, startCol))
 	l.buffer = ""
 }
 
