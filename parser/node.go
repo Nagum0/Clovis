@@ -21,8 +21,6 @@ type Statement interface {
 	Semantics(s *semantics.SemanticChecker) error
 	// Using codegen.Emitter this emits the assembly code for the statement.
 	EmitCode(e *codegen.Emitter)
-	// Pretty prints the statement.
-	Print(indent int) string
 }
 
 // Variable declaration statement.
@@ -94,10 +92,6 @@ func (s VarDeclStmt) EmitCode(e *codegen.Emitter) {
 	}
 }
 
-func (s VarDeclStmt) Print(indent int) string {
-	return ""
-}
-
 // A variable definition statement.
 type VarDefinitionStmt struct {
 	Left  Expression
@@ -163,10 +157,6 @@ func (stmt VarDefinitionStmt) EmitCode(e *codegen.Emitter) {
 	}
 }
 
-func (stmt VarDefinitionStmt) Print(indent int) string {
-	return ""
-}
-
 // A block statement holds a group of statements.
 type BlockStmt struct {
 	Statements []Statement
@@ -193,12 +183,6 @@ func (stmt BlockStmt) EmitCode(e *codegen.Emitter) {
 	}
 
 	fmt.Fprintf(e, "add rsp, %v\n", stmt.BlockSize)
-}
-
-// TODO: Add symbol data info for block statement printing
-// FIXME: Fix BlockStmt pretty printing.
-func (stmt BlockStmt) Print(indent int) string {
-	return ""
 }
 
 // If statement.
@@ -258,8 +242,47 @@ func (stmt IfStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "%v:\n", endLabel)
 }
 
-func (stmt IfStmt) Print(indent int) string {
-	return ""
+// While statement.
+type WhileStmt struct {
+	// Needed for error handling
+	WhileToken lexer.Token
+	Condition  Expression
+	Body       Statement
+}
+
+func (stmt *WhileStmt) Semantics(s *semantics.SemanticChecker) error {
+	if err := stmt.Condition.Semantics(s); err != nil {
+		return err
+	}
+
+	if err := stmt.Body.Semantics(s); err != nil {
+		return err
+	}
+
+	if stmt.Condition.ExprType().TypeID() != semantics.BOOL {
+		return s.AddError(
+			fmt.Sprintf(
+				"While statement condition must be of type BOOL received %v",
+				stmt.Condition.ExprType().TypeID(),
+			),
+			stmt.WhileToken,
+		)
+	}
+
+	return nil
+}
+
+func (stmt WhileStmt) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ------------------------- WhileStmt ------------------------- \n")
+	loopLabel := e.NextLabel()
+	endLabel := e.NextLabel()
+	fmt.Fprintf(e, "%v:\n", loopLabel)
+	stmt.Condition.EmitCode(e)
+	fmt.Fprintf(e, "cmp al, 1\n")
+	fmt.Fprintf(e, "jne %v\n", endLabel)
+	stmt.Body.EmitCode(e)
+	fmt.Fprintf(e, "jmp %v\n", loopLabel)
+	fmt.Fprintf(e, "%v:\n", endLabel)
 }
 
 // Assert statement.
@@ -294,10 +317,6 @@ func (stmt AssertStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "%v:\n", endLabel)
 }
 
-func (stmt AssertStmt) Print(indent int) string {
-	return ""
-}
-
 // Expression statement.
 type ExpressionStmt struct {
 	Expr Expression
@@ -309,10 +328,6 @@ func (stmt *ExpressionStmt) Semantics(s *semantics.SemanticChecker) error {
 
 func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) {
 	stmt.Expr.EmitCode(e)
-}
-
-func (stmt ExpressionStmt) Print(indent int) string {
-	return ""
 }
 
 // This interface represents an expression in the language.
@@ -328,8 +343,6 @@ type Expression interface {
 	EmitCode(e *codegen.Emitter)
 	// Returns whether the expression is addressable.
 	IsAddressable() bool
-	// Pretty prints the expression.
-	Print(indent int) string
 }
 
 // An AddressableExpression implements everything that a Expression implements
@@ -402,10 +415,6 @@ func (BinaryExpression) IsAddressable() bool {
 	return false
 }
 
-func (exp BinaryExpression) Print(indent int) string {
-	return ""
-}
-
 // A prefix expression holds a unary operator and a right value.
 type PrefixExpression struct {
 	Type        semantics.Type
@@ -432,14 +441,6 @@ func (exp PrefixExpression) IsAddressable() bool {
 	return exp.Addressable
 }
 
-func (exp PrefixExpression) Print(indent int) string {
-	result := fmt.Sprintf("PrefixExpression\n%v{\n", indentStr(indent))
-	result += fmt.Sprintf("%vType: %v\n", indentStr(indent+1), exp.Type)
-	result += fmt.Sprintf("%vOp: %v\n", indentStr(indent+1), exp.Op)
-	result += exp.Right.Print(indent + 1)
-	return fmt.Sprintf("%v%v\n%v}", indentStr(indent), result, indentStr(indent))
-}
-
 // TODO: PostfixExpression
 // A postfix expression holds a unary operator and a left value.
 type PostfixExpression struct {
@@ -463,10 +464,6 @@ func (exp PostfixExpression) EmitCode(e *codegen.Emitter) {
 
 func (exp PostfixExpression) IsAddressable() bool {
 	return exp.Addressable
-}
-
-func (exp PostfixExpression) Print(indent int) string {
-	return ""
 }
 
 // A dereference expression.
@@ -519,10 +516,6 @@ func (exp DerefExpression) IsAddressable() bool {
 	return true
 }
 
-func (exp DerefExpression) Print(indent int) string {
-	return ""
-}
-
 // A refence expression.
 // Example:
 //
@@ -567,10 +560,6 @@ func (exp ReferenceExpression) EmitAddressCode(e *codegen.Emitter) {
 
 func (exp ReferenceExpression) IsAddressable() bool {
 	return true
-}
-
-func (exp ReferenceExpression) Print(indent int) string {
-	return ""
 }
 
 // An array access expression.
@@ -639,10 +628,6 @@ func (ArrayAccessExpression) IsAddressable() bool {
 	return true
 }
 
-func (exp ArrayAccessExpression) Print(indent int) string {
-	return ""
-}
-
 // A literal expression holds a literal.
 type LiteralExpression struct {
 	Type  semantics.Type
@@ -675,10 +660,6 @@ func (exp LiteralExpression) EmitCode(e *codegen.Emitter) {
 
 func (exp LiteralExpression) IsAddressable() bool {
 	return false
-}
-
-func (exp LiteralExpression) Print(indent int) string {
-	return ""
 }
 
 // A identifier expression holds an identifier's token.
@@ -728,10 +709,6 @@ func (exp IdentExpression) IsAddressable() bool {
 	return true
 }
 
-func (exp IdentExpression) Print(indent int) string {
-	return ""
-}
-
 // A group expression holds an internal expression.
 type GroupExpression struct {
 	Type semantics.Type
@@ -765,8 +742,4 @@ func (exp GroupExpression) EmitAddressCode(e *codegen.Emitter) {
 
 func (exp GroupExpression) IsAddressable() bool {
 	return exp.Expr.IsAddressable()
-}
-
-func (exp GroupExpression) Print(indent int) string {
-	return ""
 }

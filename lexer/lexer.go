@@ -12,7 +12,7 @@ type LexerError struct {
 }
 
 func NewLexerError(val string, line int, col int) *LexerError {
-	return &LexerError{ val: val, line: line, col: col }
+	return &LexerError{val: val, line: line, col: col}
 }
 
 func (e *LexerError) Error() string {
@@ -25,7 +25,7 @@ type Lexer struct {
 	input  string
 	line   int
 	col    int
-	idx	   int
+	idx    int
 	buffer string
 }
 
@@ -33,9 +33,9 @@ func NewLexer(input string) *Lexer {
 	return &Lexer{
 		Tokens: []Token{},
 		Errors: []*LexerError{},
-		input: input,
-		line: 1,
-		col: 1,
+		input:  input,
+		line:   1,
+		col:    1,
 		buffer: "",
 	}
 }
@@ -51,83 +51,85 @@ func (l *Lexer) Lex() error {
 			l.idx++
 		} else if l.peek() == ';' {
 			l.consume()
-			l.emitToken(SEMI, l.col - 1)
+			l.emitToken(SEMI, l.col-1)
 		} else if l.peek() == '(' {
 			l.consume()
-			l.emitToken(OPEN_PAREN, l.col - 1)
+			l.emitToken(OPEN_PAREN, l.col-1)
 		} else if l.peek() == ')' {
 			l.consume()
-			l.emitToken(CLOSE_PAREN, l.col - 1)
+			l.emitToken(CLOSE_PAREN, l.col-1)
 		} else if l.peek() == '{' {
 			l.consume()
-			l.emitToken(OPEN_CURLY, l.col - 1)
+			l.emitToken(OPEN_CURLY, l.col-1)
 		} else if l.peek() == '}' {
 			l.consume()
-			l.emitToken(CLOSE_CURLY, l.col - 1)
+			l.emitToken(CLOSE_CURLY, l.col-1)
 		} else if l.peek() == '[' {
 			l.consume()
-			l.emitToken(OPEN_BRACKET, l.col - 1)
+			l.emitToken(OPEN_BRACKET, l.col-1)
 		} else if l.peek() == ']' {
 			l.consume()
-			l.emitToken(CLOSE_BRACKET, l.col - 1)
+			l.emitToken(CLOSE_BRACKET, l.col-1)
 		} else if l.peek() == '&' {
 			l.consume()
-			l.emitToken(AMPERSAND, l.col - 1)
+			l.emitToken(AMPERSAND, l.col-1)
 		} else if l.peek() == '=' {
 			l.consume()
 			if l.peek() == '=' {
 				l.consume()
-				l.emitToken(EQ, l.col - 2)
+				l.emitToken(EQ, l.col-2)
 			} else {
-				l.emitToken(ASSIGN, l.col - 1)
+				l.emitToken(ASSIGN, l.col-1)
 			}
 		} else if l.peek() == '!' {
 			l.consume()
 			if l.peek() == '=' {
 				l.consume()
-				l.emitToken(NEQ, l.col - 2)
+				l.emitToken(NEQ, l.col-2)
 			} else {
-				l.emitToken(NOT, l.col - 1)
+				l.emitToken(NOT, l.col-1)
 			}
 		} else if l.peek() == '<' {
 			l.consume()
 			if l.peek() == '=' {
-				l.emitToken(LESS_EQ_THAN, l.col - 2)
+				l.consume()
+				l.emitToken(LESS_EQ_THAN, l.col-2)
 			} else {
-				l.emitToken(LESS_THAN, l.col - 1)
+				l.consume()
+				l.emitToken(LESS_THAN, l.col-1)
 			}
 		} else if l.peek() == '>' {
 			l.consume()
 			if l.peek() == '=' {
-				l.emitToken(GREATER_EQ_THAN, l.col - 2)
+				l.emitToken(GREATER_EQ_THAN, l.col-2)
 			} else {
-				l.emitToken(GREATER_THAN, l.col - 1)
+				l.emitToken(GREATER_THAN, l.col-1)
 			}
 		} else if l.peek() == '+' {
 			l.consume()
 			if l.peek() == '+' {
 				l.consume()
-				l.emitToken(PLUS_PLUS, l.col - 1)
+				l.emitToken(PLUS_PLUS, l.col-1)
 			} else {
-				l.emitToken(PLUS, l.col - 1)
+				l.emitToken(PLUS, l.col-1)
 			}
 		} else if l.peek() == '-' {
 			l.consume()
 			if l.peek() == '-' {
 				l.consume()
-				l.emitToken(MINUS_MINUS, l.col - 1)
+				l.emitToken(MINUS_MINUS, l.col-1)
 			} else {
-				l.emitToken(MINUS, l.col - 1)
+				l.emitToken(MINUS, l.col-1)
 			}
 		} else if l.peek() == '*' {
 			l.consume()
-			l.emitToken(STAR, l.col - 1)
+			l.emitToken(STAR, l.col-1)
 		} else if l.peek() == '/' {
 			l.consume()
-			l.emitToken(F_SLASH, l.col - 1)
+			l.emitToken(F_SLASH, l.col-1)
 		} else if unicode.IsDigit(l.peek()) {
 			startCol := l.col
-			l.consume()	
+			l.consume()
 
 			for l.idx < len(l.input) && unicode.IsDigit(l.peek()) {
 				l.consume()
@@ -138,8 +140,8 @@ func (l *Lexer) Lex() error {
 			startCol := l.col
 			l.consume()
 
-			for l.idx < len(l.input) && 
-			    (unicode.IsLetter(l.peek()) || unicode.IsDigit(l.peek()) || l.peek() == '_') {
+			for l.idx < len(l.input) &&
+				(unicode.IsLetter(l.peek()) || unicode.IsDigit(l.peek()) || l.peek() == '_') {
 				l.consume()
 			}
 
@@ -154,7 +156,7 @@ func (l *Lexer) Lex() error {
 	l.emitToken(EOF, 0)
 
 	if errsLen := len(l.Errors); errsLen != 0 {
-		return l.Errors[errsLen - 1]
+		return l.Errors[errsLen-1]
 	} else {
 		return nil
 	}

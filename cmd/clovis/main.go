@@ -46,40 +46,13 @@ func main() {
 		}
 	}
 
-	parserLogFile, err := os.Create("plog.txt")
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer parserLogFile.Close()
-
-	for _, stmt := range parser.Stmts {
-		parserLogFile.WriteString(fmt.Sprintf("%v\n\n", stmt.Print(0)))
-	}
-
 	// -- SEMANTIC ANALYSIS
 	semantics := semantics.NewSemanticChecker()
-
-	semanticsLogFile, err := os.Create("slog.txt")
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer semanticsLogFile.Close()
-
 	for _, stmt := range parser.Stmts {
 		err := stmt.Semantics(semantics)
 		if err != nil {
 			errOccured = true
-			semanticsLogFile.WriteString(err.Error())
 			fmt.Println(err.Error())
-		} else {
-			log := fmt.Sprintf(
-				"-----------------------------------------------------\n\n%v\n\n%v\n-----------------------------------------------------\n",
-				stmt.Print(0),
-				semantics,
-			)
-			semanticsLogFile.WriteString(log)
 		}
 	}
 

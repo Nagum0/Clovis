@@ -15,7 +15,7 @@ type ParserError struct {
 func NewParserError(token lexer.Token, msg string) *ParserError {
 	return &ParserError{
 		token: token,
-		msg: msg,
+		msg:   msg,
 	}
 }
 
@@ -32,10 +32,10 @@ type Parser struct {
 
 func NewParser(tokens []lexer.Token) *Parser {
 	return &Parser{
-		Stmts: []Statement{},
+		Stmts:  []Statement{},
 		Errors: []error{},
 		tokens: tokens,
-		idx: 0,
+		idx:    0,
 	}
 }
 
@@ -43,7 +43,7 @@ func (p *Parser) Parse() error {
 	p.parseProgram()
 
 	if errLen := len(p.Errors); errLen != 0 {
-		return p.Errors[errLen - 1]
+		return p.Errors[errLen-1]
 	}
 
 	return nil
@@ -79,7 +79,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	} else if p.match(lexer.IF) {
 		return p.parseIfStmt()
 	} else if p.match(lexer.WHILE) {
-		p.parseWhileStmt()
+		return p.parseWhileStmt()
 	} else if p.match(lexer.FOR) {
 		p.parseForStmt()
 	} else if p.match(lexer.ASSERT) {
@@ -98,7 +98,7 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 
 	for p.matchAny(lexer.STAR, lexer.OPEN_BRACKET) {
 		if p.match(lexer.STAR) {
-			decl.Type = semantics.Ptr{ ValueType: decl.Type }
+			decl.Type = semantics.Ptr{ValueType: decl.Type}
 			p.consume() // '*'
 		} else if p.match(lexer.OPEN_BRACKET) {
 			p.consume() // '['
@@ -110,7 +110,7 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 				)
 			}
 			sizeToken := p.consume()
-		
+
 			if !p.match(lexer.CLOSE_BRACKET) {
 				return nil, NewParserError(
 					p.peek(),
@@ -118,9 +118,9 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 				)
 			}
 			p.consume() // ']'
-			
+
 			arrLength, _ := strconv.Atoi(sizeToken.Value)
-			decl.Type = semantics.Array{ Base: decl.Type, Length: arrLength }
+			decl.Type = semantics.Array{Base: decl.Type, Length: arrLength}
 		}
 	}
 
@@ -184,7 +184,7 @@ func (p *Parser) parseVarDefinition() (Statement, error) {
 	}
 
 	p.consume() // ';'
-	
+
 	return &varDefStmt, nil
 }
 
@@ -207,7 +207,7 @@ func (p *Parser) parseBlockStmt() (Statement, error) {
 	blockStmt := BlockStmt{
 		Statements: stmts,
 	}
-	
+
 	if !p.match(lexer.CLOSE_CURLY) {
 		err := NewParserError(
 			p.peek(),
@@ -225,7 +225,7 @@ func (p *Parser) parseBlockStmt() (Statement, error) {
 func (p *Parser) parseIfStmt() (Statement, error) {
 	ifStmt := IfStmt{}
 	ifStmt.IfToken = p.consume()
-	
+
 	expr, err := p.parseExpression()
 	if err != nil {
 		return nil, err
@@ -246,12 +246,28 @@ func (p *Parser) parseIfStmt() (Statement, error) {
 		}
 		ifStmt.ElseStmt.SetVal(elseStmt)
 	}
-	
+
 	return &ifStmt, nil
 }
 
-func (p *Parser) parseWhileStmt() {
+// <whileStmt> ::= "while" <expression> <statement>
+func (p *Parser) parseWhileStmt() (Statement, error) {
+	whileStmt := WhileStmt{}
+	whileStmt.WhileToken = p.consume()
 
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	whileStmt.Condition = expr
+
+	body, err := p.parseStatement()
+	if err != nil {
+		return nil, err
+	}
+	whileStmt.Body = body
+
+	return &whileStmt, nil
 }
 
 func (p *Parser) parseForStmt() {
@@ -316,7 +332,7 @@ func (p *Parser) parseEquality() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if p.matchAny(lexer.EQ, lexer.NEQ) {
 		op := p.consume()
 		right, err := p.parseComparison()
@@ -325,9 +341,9 @@ func (p *Parser) parseEquality() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.Undefined{},
-			Left: left,
-			Op: op,
+			Type:  semantics.Undefined{},
+			Left:  left,
+			Op:    op,
 			Right: right,
 		}
 	}
@@ -350,9 +366,9 @@ func (p *Parser) parseComparison() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.Undefined{},
-			Left: left,
-			Op: op,
+			Type:  semantics.Undefined{},
+			Left:  left,
+			Op:    op,
 			Right: right,
 		}
 	}
@@ -375,9 +391,9 @@ func (p *Parser) parseTerm() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.Undefined{},
-			Left: left,
-			Op: op,
+			Type:  semantics.Undefined{},
+			Left:  left,
+			Op:    op,
 			Right: right,
 		}
 	}
@@ -400,9 +416,9 @@ func (p *Parser) parseFactor() (Expression, error) {
 		}
 
 		left = &BinaryExpression{
-			Type: semantics.Undefined{},
-			Left: left,
-			Op: op,
+			Type:  semantics.Undefined{},
+			Left:  left,
+			Op:    op,
 			Right: right,
 		}
 	}
@@ -413,7 +429,7 @@ func (p *Parser) parseFactor() (Expression, error) {
 // <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | <postfix>
 func (p *Parser) parsePrefix() (Expression, error) {
 	if p.match(lexer.STAR) {
-		derefExpr := DerefExpression{ Op: p.consume() }
+		derefExpr := DerefExpression{Op: p.consume()}
 
 		right, err := p.parsePrefix()
 		if err != nil {
@@ -423,7 +439,7 @@ func (p *Parser) parsePrefix() (Expression, error) {
 
 		return &derefExpr, nil
 	} else if p.match(lexer.AMPERSAND) {
-		refExpr := ReferenceExpression{ Op: p.consume() }
+		refExpr := ReferenceExpression{Op: p.consume()}
 
 		right, err := p.parsePrefix()
 		if err != nil {
@@ -440,8 +456,8 @@ func (p *Parser) parsePrefix() (Expression, error) {
 		}
 
 		un := &PrefixExpression{
-			Type: semantics.Undefined{},
-			Op: op,
+			Type:  semantics.Undefined{},
+			Op:    op,
 			Right: right,
 		}
 
@@ -457,7 +473,7 @@ func (p *Parser) parsePostfix() (Expression, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// TODO: ++ and -- postfix operators
 	for p.match(lexer.OPEN_BRACKET) {
 		expr, err := p.parseArrayAccess()
@@ -472,17 +488,17 @@ func (p *Parser) parsePostfix() (Expression, error) {
 	return left, nil
 }
 
-// <primary> ::= <literal> | ident | "(" <expression> ")" 
+// <primary> ::= <literal> | ident | "(" <expression> ")"
 func (p *Parser) parsePrimary() (Expression, error) {
 	if p.matchAny(lexer.UINT_64_LIT, lexer.TRUE_LIT, lexer.FALSE_LIT) {
 		litExpr := &LiteralExpression{
-			Type: p.getType(p.peek().Type),
+			Type:  p.getType(p.peek().Type),
 			Value: p.consume(),
 		}
 		return litExpr, nil
 	} else if p.match(lexer.IDENT) {
 		identExpr := &IdentExpression{
-			Type: semantics.Undefined{},
+			Type:  semantics.Undefined{},
 			Ident: p.consume(),
 		}
 		return identExpr, nil
@@ -499,8 +515,8 @@ func (p *Parser) parsePrimary() (Expression, error) {
 
 // <arrayAccess> := "[" <expression> "]"
 func (p *Parser) parseArrayAccess() (Expression, error) {
-	arrayAccessExpr := ArrayAccessExpression{ 
-		Type: semantics.Undefined{},
+	arrayAccessExpr := ArrayAccessExpression{
+		Type:        semantics.Undefined{},
 		OpenBracket: p.consume(),
 	}
 
@@ -529,25 +545,25 @@ func (p *Parser) parseGroupExpr() (Expression, error) {
 
 	p.consume()
 
-    expr, err := p.parseExpression()
-    if err != nil {
-    	return nil, err
-    }
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
 
 	groupExpr.Expr = expr
-    
-    if !p.match(lexer.CLOSE_PAREN) {
-    	err = NewParserError(
-        	p.consume(),
-        	"Expected ')' after group expression",
-    	)
 
-    	return nil, err
-    }
+	if !p.match(lexer.CLOSE_PAREN) {
+		err = NewParserError(
+			p.consume(),
+			"Expected ')' after group expression",
+		)
 
-    p.consume()
+		return nil, err
+	}
 
-    return groupExpr, nil
+	p.consume()
+
+	return groupExpr, nil
 }
 
 func (p *Parser) consume() lexer.Token {

@@ -78,6 +78,18 @@ else {
 assert y == 67;
 ```
 
+#### While loop
+
+- While loops take a condition which must be of type bool and a
+  lopp body.
+``` py
+uint64 i = 0;
+while i < 10 {
+    i = i + 1;
+}
+assert i == 10;
+```
+
 #### Assert statement
 
 - If assert condition is true the execution continues,
