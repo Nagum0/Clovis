@@ -98,33 +98,11 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	decl := VarDeclStmt{}
 	decl.Type = p.getType(p.consume().Type)
 
-	for p.matchAny(lexer.STAR, lexer.OPEN_BRACKET) {
-		if p.match(lexer.STAR) {
-			decl.Type = semantics.Ptr{ValueType: decl.Type}
-			p.consume() // '*'
-		} else if p.match(lexer.OPEN_BRACKET) {
-			p.consume() // '['
-
-			if !p.match(lexer.UINT_64_LIT) {
-				return nil, NewParserError(
-					p.peek(),
-					fmt.Sprintf("Expected size specifier for array declaration but received '%v'", p.consume().Value),
-				)
-			}
-			sizeToken := p.consume()
-
-			if !p.match(lexer.CLOSE_BRACKET) {
-				return nil, NewParserError(
-					p.peek(),
-					fmt.Sprintf("Expected ']' after array declaration but received '%v'", p.consume().Value),
-				)
-			}
-			p.consume() // ']'
-
-			arrLength, _ := strconv.Atoi(sizeToken.Value)
-			decl.Type = semantics.Array{Base: decl.Type, Length: arrLength}
-		}
+	parsedType, err := p.parseType(decl.Type)
+	if err != nil {
+		return nil, err
 	}
+	decl.Type = parsedType
 
 	if !p.match(lexer.IDENT) {
 		return nil, NewParserError(
@@ -152,6 +130,38 @@ func (p *Parser) parseVarDecl() (*VarDeclStmt, error) {
 	p.consume() // ';'
 
 	return &decl, nil
+}
+
+func (p *Parser) parseType(t semantics.Type) (semantics.Type, error) {
+	for p.matchAny(lexer.STAR, lexer.OPEN_BRACKET) {
+		if p.match(lexer.STAR) {
+			t = semantics.Ptr{ValueType: t}
+			p.consume() // '*'
+		} else if p.match(lexer.OPEN_BRACKET) {
+			p.consume() // '['
+
+			if !p.match(lexer.UINT_64_LIT) {
+				return nil, NewParserError(
+					p.peek(),
+					fmt.Sprintf("Expected size specifier for array declaration but received '%v'", p.consume().Value),
+				)
+			}
+			sizeToken := p.consume()
+
+			if !p.match(lexer.CLOSE_BRACKET) {
+				return nil, NewParserError(
+					p.peek(),
+					fmt.Sprintf("Expected ']' after array declaration but received '%v'", p.consume().Value),
+				)
+			}
+			p.consume() // ']'
+
+			arrLength, _ := strconv.Atoi(sizeToken.Value)
+			t = semantics.Array{Base: t, Length: arrLength}
+		}
+	}
+
+	return t, nil
 }
 
 // <varDefinition> ::= <lvalue> "=" <expression> ";"
@@ -351,6 +361,11 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 			return nil, e
 		}
 		funcDeclStmt.FuncType.Return = p.getType(p.consume().Type)
+		parsedReturnType, err := p.parseType(funcDeclStmt.FuncType.Return)
+		if err != nil {
+			return nil, err
+		}
+		funcDeclStmt.FuncType.Return = parsedReturnType
 	} else {
 		funcDeclStmt.FuncType.Return = semantics.Undefined{}
 	}
@@ -406,7 +421,10 @@ func (p *Parser) parseParam(params *map[string]semantics.Type) error {
 			fmt.Sprintf("Expected a type identifier found %v", p.peek().Value),
 		)
 	}
-	paramType := p.getType(p.consume().Type)
+	paramType, err := p.parseType(p.getType(p.consume().Type))
+	if err != nil {
+		return err
+	}
 
 	if !p.match(lexer.IDENT) {
 		return NewParserError(
