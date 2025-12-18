@@ -1,6 +1,9 @@
 package semantics
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // A unique type identifier represented as a string.
 // Often times the name of the given type.
@@ -428,6 +431,52 @@ func (a Array) CanUseOperator(op string, operand Type) (bool, Type) {
 }
 
 func (a Array) CanUseUnaryOperator(op string) (bool, Type) {
+	return false, Undefined{}
+}
+
+type Func struct {
+	Params []Type
+	Return Type
+}
+
+func (f Func) TypeID() TypeID {
+	builder := strings.Builder{}
+
+	builder.WriteString("FUNC_")
+	for _, param := range f.Params {
+		fmt.Fprintf(&builder, "%v_", param.TypeID())
+	}
+	fmt.Fprintf(&builder, "%v", f.Return.TypeID())
+
+	return TypeID(builder.String())
+}
+
+func (Func) Size() int {
+	return 8
+}
+
+func (Func) Register() string {
+	return "rax"
+}
+
+func (Func) ASMSize() string {
+	return "QWORD"
+}
+
+func (f Func) Equals(other Type) bool {
+	otherFunc, l := other.(Func)
+	if !l {
+		return false
+	}
+
+	return f.TypeID() == otherFunc.TypeID()
+}
+
+func (f Func) CanUseOperator(op string, operand Type) (bool, Type) {
+	return false, Undefined{}
+}
+
+func (f Func) CanUseUnaryOperator(op string) (bool, Type) {
 	return false, Undefined{}
 }
 

@@ -23,10 +23,10 @@
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
 <expressionStmt> ::= <expression> ";"
-<funcDeclaration> ::= "fn" <ident> "(" <params> ")" "{" <statements> "}"
-<params> ::= <param> |
-             <param> "," <param>
-<param> ::= 
+
+<funcDeclaration> ::= "fn" <ident> "(" [ <params> ] ")" [ "->" <typeID> ] "{" <statements> "}"
+<params> ::= <param> { "," <param> }
+<param> ::= <typeID> <ident>
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }
@@ -35,8 +35,10 @@
 <factor> ::= <prefix> { ("*" | "/") <prefix> }
 <prefix> ::= ( "!" | "-" | "*" | "&" ) <prefix> | 
             <postfix>
-<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> ) }
+<postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | "(" [ <args> ] ")" ) }
 <primary> ::= <literal> | <ident> | <groupExpr>
 <arrayAccess> := "[" <expression> "]"
+<args> ::= <args> { "," <arg> }
+<arg> ::= <expression>
 <groupExpr> ::= "(" <expression> ")"
 ```
