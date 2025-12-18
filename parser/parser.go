@@ -306,6 +306,7 @@ func (p *Parser) parseAssert() (Statement, error) {
 func (p *Parser) parseFuncDeclaration() (Statement, error) {
 	p.consume() // fn
 	funcDeclStmt := FuncDeclaration{}
+	funcDeclStmt.FuncType = semantics.Func{}
 
 	if !p.match(lexer.IDENT) {
 		e := NewParserError(
@@ -329,7 +330,7 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	funcDeclStmt.Params = params
+	funcDeclStmt.FuncType.Params = params
 
 	if !p.match(lexer.CLOSE_PAREN) {
 		e := NewParserError(
@@ -349,9 +350,9 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 			)
 			return nil, e
 		}
-		funcDeclStmt.Return = p.getType(p.consume().Type)
+		funcDeclStmt.FuncType.Return = p.getType(p.consume().Type)
 	} else {
-		funcDeclStmt.Return = semantics.Undefined{}
+		funcDeclStmt.FuncType.Return = semantics.Undefined{}
 	}
 
 	if !p.match(lexer.OPEN_CURLY) {
@@ -376,52 +377,48 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 }
 
 // <params> ::= <param> { "," <param> }
-func (p *Parser) parseParams() ([]Param, error) {
-	params := []Param{}
+func (p *Parser) parseParams() (map[string]semantics.Type, error) {
+	params := map[string]semantics.Type{}
 
 	if p.match(lexer.CLOSE_PAREN) {
 		return params, nil
 	}
 
-	param, err := p.parseParam()
+	err := p.parseParam(&params)
 	if err != nil {
 		return nil, err
 	}
-	params = append(params, *param)
 	for p.match(lexer.COMMA) {
 		p.consume() // ','
-		param, err = p.parseParam()
+		err = p.parseParam(&params)
 		if err != nil {
 			return nil, err
 		}
-		params = append(params, *param)
 	}
 
 	return params, nil
 }
 
-func (p *Parser) parseParam() (*Param, error) {
-	param := Param{}
-
+func (p *Parser) parseParam(params *map[string]semantics.Type) error {
 	if !p.matchAny(lexer.UINT_8, lexer.UINT_16, lexer.UINT_32, lexer.UINT_64, lexer.BOOL) {
-		e := NewParserError(
+		return NewParserError(
 			p.peek(),
 			fmt.Sprintf("Expected a type identifier found %v", p.peek().Value),
 		)
-		return nil, e
 	}
-	param.Type = p.getType(p.consume().Type)
+	paramType := p.getType(p.consume().Type)
 
 	if !p.match(lexer.IDENT) {
-		e := NewParserError(
+		return NewParserError(
 			p.peek(),
 			fmt.Sprintf("Expected an identifier found %v", p.peek().Value),
 		)
-		return nil, e
 	}
-	param.Ident = p.consume()
+	paramIdent := p.consume()
 
-	return &param, nil
+	(*params)[paramIdent.Value] = paramType
+
+	return nil
 }
 
 func (p *Parser) parseExpressionStmt() (Statement, error) {

@@ -434,8 +434,9 @@ func (a Array) CanUseUnaryOperator(op string) (bool, Type) {
 	return false, Undefined{}
 }
 
+// This type represents a function with it's parameters and return type.
 type Func struct {
-	Params []Type
+	Params map[string]Type
 	Return Type
 }
 
