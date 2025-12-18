@@ -84,6 +84,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 		p.parseForStmt()
 	} else if p.match(lexer.ASSERT) {
 		return p.parseAssert()
+	} else if p.match(lexer.FUNC) {
+		return p.parseFuncDeclaration()
 	} else {
 		return p.parseExpressionStmt()
 	}
@@ -298,6 +300,128 @@ func (p *Parser) parseAssert() (Statement, error) {
 	p.consume() // ';'
 
 	return &stmt, nil
+}
+
+// <funcDeclaration> ::= "fn" <ident> "(" [ <params> ] ")" [ "->" <typeID> ] "{" <statements> "}"
+func (p *Parser) parseFuncDeclaration() (Statement, error) {
+	p.consume() // fn
+	funcDeclStmt := FuncDeclaration{}
+
+	if !p.match(lexer.IDENT) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an identifier found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	funcDeclStmt.Ident = p.consume()
+
+	if !p.match(lexer.OPEN_PAREN) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an '(' found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	p.consume() // '('
+
+	params, err := p.parseParams()
+	if err != nil {
+		return nil, err
+	}
+	funcDeclStmt.Params = params
+
+	if !p.match(lexer.CLOSE_PAREN) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an ')' found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	p.consume() // ')'
+
+	if p.match(lexer.ARROW) {
+		p.consume() // '->'
+		if !p.matchAny(lexer.UINT_8, lexer.UINT_16, lexer.UINT_32, lexer.UINT_64, lexer.BOOL) {
+			e := NewParserError(
+				p.peek(),
+				fmt.Sprintf("Expected a type identifier found %v", p.peek().Value),
+			)
+			return nil, e
+		}
+		funcDeclStmt.Return = p.getType(p.consume().Type)
+	} else {
+		funcDeclStmt.Return = semantics.Undefined{}
+	}
+
+	if !p.match(lexer.OPEN_CURLY) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an '{' found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	p.consume() // '{'
+
+	for !p.match(lexer.CLOSE_CURLY) {
+		stmt, err := p.parseStatement()
+		if err != nil {
+			return nil, err
+		}
+		funcDeclStmt.Body = append(funcDeclStmt.Body, stmt)
+	}
+	p.consume() // '}'
+
+	return &funcDeclStmt, nil
+}
+
+// <params> ::= <param> { "," <param> }
+func (p *Parser) parseParams() ([]Param, error) {
+	params := []Param{}
+
+	if p.match(lexer.CLOSE_PAREN) {
+		return params, nil
+	}
+
+	param, err := p.parseParam()
+	if err != nil {
+		return nil, err
+	}
+	params = append(params, *param)
+	for p.match(lexer.COMMA) {
+		p.consume() // ','
+		param, err = p.parseParam()
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, *param)
+	}
+
+	return params, nil
+}
+
+func (p *Parser) parseParam() (*Param, error) {
+	param := Param{}
+
+	if !p.matchAny(lexer.UINT_8, lexer.UINT_16, lexer.UINT_32, lexer.UINT_64, lexer.BOOL) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected a type identifier found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	param.Type = p.getType(p.consume().Type)
+
+	if !p.match(lexer.IDENT) {
+		e := NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected an identifier found %v", p.peek().Value),
+		)
+		return nil, e
+	}
+	param.Ident = p.consume()
+
+	return &param, nil
 }
 
 func (p *Parser) parseExpressionStmt() (Statement, error) {

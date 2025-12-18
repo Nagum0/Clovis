@@ -119,6 +119,9 @@ func (l *Lexer) Lex() error {
 			if l.peek() == '-' {
 				l.consume()
 				l.emitToken(MINUS_MINUS, l.col-1)
+			} else if l.peek() == '>' {
+				l.consume()
+				l.emitToken(ARROW, l.col-1)
 			} else {
 				l.emitToken(MINUS, l.col-1)
 			}
@@ -128,6 +131,9 @@ func (l *Lexer) Lex() error {
 		} else if l.peek() == '/' {
 			l.consume()
 			l.emitToken(F_SLASH, l.col-1)
+		} else if l.peek() == ',' {
+			l.consume()
+			l.emitToken(COMMA, l.col-1)
 		} else if unicode.IsDigit(l.peek()) {
 			startCol := l.col
 			l.consume()
@@ -205,6 +211,9 @@ func (l *Lexer) isKeyword(startCol int) bool {
 		return true
 	case "assert":
 		l.emitToken(ASSERT, startCol)
+		return true
+	case "fn":
+		l.emitToken(FUNC, startCol)
 		return true
 	}
 

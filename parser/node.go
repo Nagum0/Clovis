@@ -330,6 +330,29 @@ func (stmt ExpressionStmt) EmitCode(e *codegen.Emitter) {
 	stmt.Expr.EmitCode(e)
 }
 
+type Param struct {
+	Type  semantics.Type
+	Ident lexer.Token
+}
+
+type FuncDeclaration struct {
+	Ident    lexer.Token
+	FuncType semantics.Type
+	Params   []Param
+	Return   semantics.Type
+	Body     []Statement
+}
+
+func (stmt *FuncDeclaration) Semantics(s *semantics.SemanticChecker) error {
+	fmt.Printf("Ident: %v\nFuncType: %v\nParams: %v\nReturn: %v\nBody: %v\n",
+		stmt.Ident.Value, stmt.FuncType, stmt.Params, stmt.Return.TypeID(), stmt.Body)
+	panic("NOT IMPLEMENTED FUNC SEMANTICS")
+}
+
+func (stmt FuncDeclaration) EmitCode(e *codegen.Emitter) {
+	panic("NOT IMPLEMENTED FUNC CODE EMISSION")
+}
+
 // This interface represents an expression in the language.
 // and holds the needed functions for semantic analysis and code generation.
 // All expressions must have a type that can be check with the ExprType() function.

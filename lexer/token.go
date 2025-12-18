@@ -3,47 +3,51 @@ package lexer
 import "fmt"
 
 type TokenType string
+
 const (
-	EOF = "EOF"
-	SEMI = "SEMI"
-	
-	IF = "IF"
-	ELSE = "ELSE"
-	WHILE = "WHILE"
-	FOR = "FOR"
-	UINT_64 = "UINT_64"
-	UINT_32 = "UINT_32"
-	UINT_16 = "UINT_16"
-	UINT_8 = "UINT_8"
-	BOOL = "BOOL"
-	ASSERT = "ASSERT"
+	EOF  TokenType = "EOF"
+	SEMI TokenType = "SEMI"
 
-	UINT_64_LIT = "UINT_64_LIT"
-	TRUE_LIT = "TRUE_LIT"
-	FALSE_LIT = "FALSE_LIT"
-	IDENT = "IDENT"
+	IF      TokenType = "IF"
+	ELSE    TokenType = "ELSE"
+	WHILE   TokenType = "WHILE"
+	FOR     TokenType = "FOR"
+	UINT_64 TokenType = "UINT_64"
+	UINT_32 TokenType = "UINT_32"
+	UINT_16 TokenType = "UINT_16"
+	UINT_8  TokenType = "UINT_8"
+	BOOL    TokenType = "BOOL"
+	ASSERT  TokenType = "ASSERT"
+	FUNC    TokenType = "FN"
 
-	OPEN_PAREN = "OPEN_PAREN"
-	CLOSE_PAREN = "CLOSE_PAREN"
-	OPEN_CURLY = "OPEN_CURLY"
-	CLOSE_CURLY = "CLOSE_CURLY"
-	OPEN_BRACKET = "OPEN_BRACKET"
-	CLOSE_BRACKET = "CLOSE_BRACKET"
-	EQ = "EQ"
-	NEQ = "NEQ"
-	LESS_THAN = "LESS_THAN"
-	LESS_EQ_THAN = "LESS_EQ_THAN"
-	GREATER_THAN = "GREATER_THAN"
-	GREATER_EQ_THAN = "GREATER_EQ_THAN"
-	NOT = "NOT"
-	PLUS = "PLUS"
-	PLUS_PLUS = "PLUS_PLUS"
-	MINUS = "MINUS"
-	MINUS_MINUS = "MINUS_MINUS"
-	STAR = "STAR"
-	F_SLASH = "F_SLASH"
-	ASSIGN = "ASSIGN"
-	AMPERSAND = "AMPERSAND"
+	UINT_64_LIT TokenType = "UINT_64_LIT"
+	TRUE_LIT    TokenType = "TRUE_LIT"
+	FALSE_LIT   TokenType = "FALSE_LIT"
+	IDENT       TokenType = "IDENT"
+
+	OPEN_PAREN      TokenType = "OPEN_PAREN"
+	CLOSE_PAREN     TokenType = "CLOSE_PAREN"
+	OPEN_CURLY      TokenType = "OPEN_CURLY"
+	CLOSE_CURLY     TokenType = "CLOSE_CURLY"
+	OPEN_BRACKET    TokenType = "OPEN_BRACKET"
+	CLOSE_BRACKET   TokenType = "CLOSE_BRACKET"
+	EQ              TokenType = "EQ"
+	NEQ             TokenType = "NEQ"
+	LESS_THAN       TokenType = "LESS_THAN"
+	LESS_EQ_THAN    TokenType = "LESS_EQ_THAN"
+	GREATER_THAN    TokenType = "GREATER_THAN"
+	GREATER_EQ_THAN TokenType = "GREATER_EQ_THAN"
+	NOT             TokenType = "NOT"
+	PLUS            TokenType = "PLUS"
+	PLUS_PLUS       TokenType = "PLUS_PLUS"
+	MINUS           TokenType = "MINUS"
+	MINUS_MINUS     TokenType = "MINUS_MINUS"
+	STAR            TokenType = "STAR"
+	F_SLASH         TokenType = "F_SLASH"
+	ASSIGN          TokenType = "ASSIGN"
+	AMPERSAND       TokenType = "AMPERSAND"
+	ARROW           TokenType = "ARROW"
+	COMMA           TokenType = "COMMA"
 )
 
 type Token struct {
@@ -55,10 +59,10 @@ type Token struct {
 
 func NewToken(tokenType TokenType, value string, line int, col int) *Token {
 	return &Token{
-		Type: tokenType,
+		Type:  tokenType,
 		Value: value,
-		Line: line,
-		Col: col,
+		Line:  line,
+		Col:   col,
 	}
 }
 
