@@ -6,6 +6,7 @@ import (
 	"clovis/semantics"
 	"clovis/utils"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -335,15 +336,101 @@ type FuncDeclaration struct {
 	Ident    lexer.Token
 	FuncType semantics.Func
 	Body     []Statement
+	Params   []semantics.Symbol
 }
 
 func (stmt *FuncDeclaration) Semantics(s *semantics.SemanticChecker) error {
-	fmt.Printf("Ident: %v\nFuncType: %v\nReturn: %v\nBody: %v\n",
-		stmt.Ident.Value, stmt.FuncType.TypeID(), stmt.FuncType.Return.TypeID(), stmt.Body)
+	if err := s.PushSymbol(stmt.Ident.Value, stmt.FuncType, stmt.Ident); err != nil {
+		return err
+	}
+
+	s.PushStackFrame()
+	s.PushBlock()
+
+	for paramIdent, paramType := range stmt.FuncType.Params {
+		if err := s.PushSymbol(paramIdent, paramType, stmt.Ident); err != nil {
+			return s.AddError(
+				fmt.Sprintf("Error while pushing param %v to symbol table: %v", paramIdent, err.Error()),
+				stmt.Ident,
+			)
+		}
+		topSymbol, _ := s.TopSymbol()
+		stmt.Params = append(stmt.Params, topSymbol)
+	}
+
+	for _, stmt := range stmt.Body {
+		if err := stmt.Semantics(s); err != nil {
+			return err
+		}
+	}
+
+	if err := s.PopStackFrame(); err != nil {
+		return err
+	}
+	s.PopBlock()
+
 	return nil
 }
 
+// TODO: Implement reading rest of the parameters from the stack
 func (stmt FuncDeclaration) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "%v:\n", stmt.Ident.Value)
+	fmt.Fprintf(e, "push rbp\nmov rbp, rsp\n")
+
+	paramRegisters := []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+	paramNumLimit := min(len(paramRegisters), len(stmt.Params))
+
+	fullParamsSize := 0
+	for _, paramSymbol := range stmt.Params[0:paramNumLimit] {
+		fullParamsSize += paramSymbol.Size
+	}
+	fmt.Fprintf(e, "sub rsp, %v\n", fullParamsSize)
+
+	for idx, paramSymbol := range stmt.Params[0:paramNumLimit] {
+		fmt.Fprintf(
+			e, "mov %v [rbp - %v], %v\n",
+			paramSymbol.Type.ASMSize(),
+			paramSymbol.Offset,
+			transformParamRegister(paramSymbol.Type, paramRegisters[idx]),
+		)
+	}
+
+	for _, bodyStmt := range stmt.Body {
+		bodyStmt.EmitCode(e)
+	}
+
+	fmt.Fprintf(e, "mov rsp, rbp\npop rbp\nret\n")
+}
+
+// Transform the 64 bit register name to the correct size one specified by the type.
+func transformParamRegister(t semantics.Type, paramRegister64 string) string {
+	isRRegister, _ := regexp.MatchString("r(1[0-5]|8|9)", paramRegister64)
+
+	switch t.(type) {
+	case semantics.Ptr, semantics.Array, semantics.Func, semantics.Uint64, semantics.UintLiteral:
+		return paramRegister64
+	case semantics.Uint32:
+		if isRRegister {
+			return paramRegister64 + "d"
+		}
+		return strings.Replace(paramRegister64, "r", "e", 1)
+	case semantics.Uint16:
+		if isRRegister {
+			return paramRegister64 + "w"
+		}
+		return paramRegister64[1:2]
+	case semantics.Uint8, semantics.Bool:
+		if isRRegister {
+			return paramRegister64 + "b"
+		}
+		registerNameEnd := paramRegister64[1:2]
+		registerNameEnd = strings.Replace(registerNameEnd, "x", "l", 1)
+		if registerNameEnd[0] == 's' || registerNameEnd[0] == 'd' || registerNameEnd[0] == 'b' {
+			return registerNameEnd + "l"
+		}
+	}
+
+	return paramRegister64
 }
 
 // This interface represents an expression in the language.

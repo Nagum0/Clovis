@@ -58,7 +58,7 @@ func NewSemanticChecker() *SemanticChecker {
 
 func (s SemanticChecker) String() string {
 	return fmt.Sprintf(
-		"SymbolTable:\n%v\nBlockIndexTable:\n%v\nnextAddr:\n%v\n",
+		"SymbolTable:\n%v\nBlockIndexTable:\n%vstackFrames:\n%v\n",
 		s.symbolTable,
 		s.blockIndexTable,
 		s.stackFrames,
@@ -95,7 +95,10 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 		Offset: nextAddr + symbolSize,
 		Size:   symbolSize,
 	}
-	s.stackFrames.Push(nextAddr + symbolSize)
+
+	if _, l := symbolType.(Func); !l {
+		s.stackFrames.Push(nextAddr + symbolSize)
+	}
 	s.symbolTable.Push(*symbol)
 
 	return nil
@@ -126,6 +129,15 @@ func (s *SemanticChecker) PopBlock() int {
 	}
 
 	return size
+}
+
+func (s *SemanticChecker) PushStackFrame() {
+	s.stackFrames.Push(0)
+}
+
+func (s *SemanticChecker) PopStackFrame() error {
+	_, err := s.stackFrames.Pop()
+	return err
 }
 
 func (s *SemanticChecker) GetSymbol(ident lexer.Token) (*Symbol, error) {
