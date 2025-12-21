@@ -60,6 +60,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Check for main function existence
+	if err := semantics.MainFunctionExists(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
 	// -- CODE GENERATION
 	emitter := codegen.NewEmitter()
 	for _, stmt := range parser.Stmts {

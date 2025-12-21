@@ -2,22 +2,23 @@ package codegen
 
 import (
 	"clovis/lexer"
-	"strings"
 	"fmt"
+	"strings"
 )
 
 // Generates x86_64 assembly code.
 type Emitter struct {
-	Code 	   string
+	Code       string
 	LabelCount int
 }
 
 func NewEmitter() *Emitter {
 	b := strings.Builder{}
+
 	b.WriteString("section .text\n")
-	b.WriteString("global _start\n\n")
-	b.WriteString("_start:\n")
-	b.WriteString("mov rbp, rsp\n\n")
+	b.WriteString("global _start\n")
+	b.WriteString("global main\n\n")
+
 	return &Emitter{
 		Code: b.String(),
 	}
@@ -34,12 +35,15 @@ func (e *Emitter) WriteString(code string) {
 
 // Adds a exit syscall to the end of the code.
 func (e *Emitter) End() {
-	b := strings.Builder{}
-	b.WriteString("\n; Emitter.End()\n")
-	b.WriteString("mov rax, 60\n")
-	b.WriteString("mov rdi, 0\n")
-	b.WriteString("syscall\n")
-	e.Code += b.String()
+	fmt.Fprintf(e, "\n; Emitter.End()\n")
+	fmt.Fprintf(e, "_start:\n")
+	fmt.Fprintf(e, "mov rbp, rsp\n")
+	fmt.Fprintf(e, "sub rsp, 8\n")
+	fmt.Fprintf(e, "call main\n")
+	fmt.Fprintf(e, "add rsp, 8\n")
+	fmt.Fprintf(e, "mov rdi, rax\n")
+	fmt.Fprintf(e, "mov rax, 60\n")
+	fmt.Fprintf(e, "syscall\n")
 }
 
 func ASMBinaryOp(op lexer.Token) string {
@@ -73,4 +77,3 @@ func (e *Emitter) NextLabel() string {
 	e.LabelCount++
 	return fmt.Sprintf(".L%02v", e.LabelCount)
 }
-

@@ -172,6 +172,41 @@ func (s SemanticChecker) TopBlockHasSymbol(ident string) bool {
 	return false
 }
 
+func (s SemanticChecker) MainFunctionExists() error {
+	symbolData := s.symbolTable.Data()
+	mainSymbolCount := 0
+	var lastFoundMainSymbol Symbol
+
+	for _, symbol := range symbolData {
+		if symbol.Ident == "main" {
+			mainSymbolCount++
+			lastFoundMainSymbol = symbol
+		}
+	}
+
+	if mainSymbolCount >= 2 {
+		return NewSemanticError(
+			"main symbol declared multiple times",
+			lastFoundMainSymbol.Token,
+		)
+	}
+
+	if mainSymbolCount == 0 {
+		return fmt.Errorf("main symbol not found")
+	}
+
+	mainFuncType, l := lastFoundMainSymbol.Type.(Func)
+	if !l {
+		return fmt.Errorf("main symbol needs to be a function")
+	}
+
+	if len(mainFuncType.Params) != 0 || !mainFuncType.Return.Equals(Uint64{}) {
+		return fmt.Errorf("main function type signature should be: () -> uint64")
+	}
+
+	return nil
+}
+
 func align16(x int) int {
 	remainder := x % 16
 
