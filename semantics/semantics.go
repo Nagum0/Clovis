@@ -209,12 +209,8 @@ func (s SemanticChecker) MainFunctionExists() error {
 	return nil
 }
 
-func align16(x int) int {
-	remainder := x % 16
-
-	if remainder == 0 {
-		return x
-	}
-
-	return x + (16 - remainder)
+func (s SemanticChecker) Align16() int {
+	nextAddr, _ := s.stackFrames.Top()
+	remainder := nextAddr % 16
+	return 16 - remainder
 }

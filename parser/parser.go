@@ -646,7 +646,7 @@ func (p *Parser) parsePrefix() (Expression, error) {
 	return p.parsePostfix()
 }
 
-// <postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> }
+// <postfix> ::= <primary> { ( "++" | "--" | <arrayAccess> | "(" [ <args> ] ")" ) }
 func (p *Parser) parsePostfix() (Expression, error) {
 	left, err := p.parsePrimary()
 	if err != nil {
@@ -654,18 +654,60 @@ func (p *Parser) parsePostfix() (Expression, error) {
 	}
 
 	// TODO: ++ and -- postfix operators
-	for p.match(lexer.OPEN_BRACKET) {
-		expr, err := p.parseArrayAccess()
-		if err != nil {
-			return nil, err
+	if p.match(lexer.OPEN_BRACKET) {
+		for p.match(lexer.OPEN_BRACKET) {
+			expr, err := p.parseArrayAccess()
+			if err != nil {
+				return nil, err
+			}
+			arrayAccessExpr := expr.(*ArrayAccessExpression)
+			arrayAccessExpr.Left = left
+			left = arrayAccessExpr
 		}
-		arrayAccessExpr := expr.(*ArrayAccessExpression)
-		arrayAccessExpr.Left = left
-		left = arrayAccessExpr
+	} else if p.match(lexer.OPEN_PAREN) {
+		for p.match(lexer.OPEN_PAREN) {
+			funcCallExpr := FuncCallExpression{}
+			funcCallExpr.OpenParen = p.consume() // '('
+
+			if p.match(lexer.CLOSE_PAREN) {
+				p.consume() // ')'
+				funcCallExpr.Left = left
+				left = &funcCallExpr
+				return left, nil
+			}
+
+			arg, err := p.parseExpression()
+			if err != nil {
+				return nil, err
+			}
+			funcCallExpr.Args = append(funcCallExpr.Args, arg)
+			for p.match(lexer.COMMA) {
+				p.consume() // ','
+				arg, err := p.parseExpression()
+				if err != nil {
+					return nil, err
+				}
+				funcCallExpr.Args = append(funcCallExpr.Args, arg)
+			}
+
+			if !p.match(lexer.CLOSE_PAREN) {
+				return nil, NewParserError(
+					p.peek(),
+					"Expected ')' at the end of function call",
+				)
+			}
+			p.consume() // ')'
+
+			funcCallExpr.Left = left
+			left = &funcCallExpr
+		}
 	}
 
 	return left, nil
 }
+
+// <args> ::= <args> { "," <arg> }
+// <arg> ::= <expression>
 
 // <primary> ::= <literal> | ident | "(" <expression> ")"
 func (p *Parser) parsePrimary() (Expression, error) {

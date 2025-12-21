@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-func indentStr(n int) string {
-	return strings.Repeat("  ", n)
-}
-
 // This interface represents a statement in the language
 // and holds the needed functions for semantic analysis and code generation.
 type Statement interface {
@@ -822,6 +818,94 @@ func (ArrayAccessExpression) IsAddressable() bool {
 	return true
 }
 
+// A function call postifx expression.
+type FuncCallExpression struct {
+	Type         semantics.Type
+	Left         Expression
+	Args         []Expression
+	StackPadding int
+	OpenParen    lexer.Token
+}
+
+func (exp FuncCallExpression) ExprType() semantics.Type {
+	return exp.Type
+}
+
+func (exp *FuncCallExpression) Semantics(s *semantics.SemanticChecker) error {
+	if err := exp.Left.Semantics(s); err != nil {
+		return err
+	}
+
+	funcType, isFunc := exp.Left.ExprType().(semantics.Func)
+	if !isFunc {
+		return s.AddError(
+			fmt.Sprintf(
+				"Operator '()' can only be used on function calls but received %v",
+				exp.Left.ExprType().TypeID(),
+			),
+			exp.OpenParen,
+		)
+	}
+	exp.Type = funcType.Return
+
+	paramTypes := []semantics.Type{}
+	for _, t := range funcType.Params {
+		paramTypes = append(paramTypes, t)
+	}
+
+	if len(exp.Args) != len(paramTypes) {
+		return s.AddError(
+			fmt.Sprintf(
+				"Argument count does not match parameter count. Expected %v received %v",
+				len(paramTypes), len(exp.Args),
+			),
+			exp.OpenParen,
+		)
+	}
+
+	for idx, arg := range exp.Args {
+		if err := arg.Semantics(s); err != nil {
+			return err
+		}
+
+		if !arg.ExprType().Equals(paramTypes[idx]) {
+			return s.AddError(
+				fmt.Sprintf(
+					"Argument %v expected type %v received %v",
+					idx, paramTypes[idx].TypeID(), arg.ExprType().TypeID(),
+				),
+				exp.OpenParen,
+			)
+		}
+	}
+
+	exp.StackPadding = s.Align16()
+
+	return nil
+}
+
+func (exp FuncCallExpression) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; FuncCallExpression type = %v\n", exp.Type.TypeID())
+
+	paramRegisters := []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+	argsLen := min(len(exp.Args), 5)
+	requiredParamRegisters := paramRegisters[0:argsLen]
+
+	for idx, arg := range exp.Args[0:argsLen] {
+		arg.EmitCode(e)
+		fmt.Fprintf(e, "mov %v, rax\n", requiredParamRegisters[idx])
+	}
+
+	fmt.Fprintf(e, "sub rsp, %v\n", exp.StackPadding)
+	exp.Left.EmitCode(e)
+	fmt.Fprintf(e, "call rax\n")
+	fmt.Fprintf(e, "add rsp, %v\n", exp.StackPadding)
+}
+
+func (FuncCallExpression) IsAddressable() bool {
+	return false
+}
+
 // A literal expression holds a literal.
 type LiteralExpression struct {
 	Type  semantics.Type
@@ -880,10 +964,12 @@ func (exp *IdentExpression) Semantics(s *semantics.SemanticChecker) error {
 
 func (exp IdentExpression) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; IdentExpression rvalue type = %v\n", exp.Type.TypeID())
-	_, isArray := exp.Type.(semantics.Array)
-	if isArray {
+	switch exp.Type.(type) {
+	case semantics.Array:
 		fmt.Fprintf(e, "lea rax, [rbp - %v]\n", exp.Symbol.Offset)
-	} else {
+	case semantics.Func:
+		fmt.Fprintf(e, "lea rax, [rel %v]\n", exp.Ident.Value)
+	default:
 		fmt.Fprintf(
 			e,
 			"mov %v, %v [rbp - %v]\n",
