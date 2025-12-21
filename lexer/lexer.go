@@ -215,6 +215,9 @@ func (l *Lexer) isKeyword(startCol int) bool {
 	case "fn":
 		l.emitToken(FUNC, startCol)
 		return true
+	case "return":
+		l.emitToken(RETURN, startCol)
+		return true
 	}
 
 	return false

@@ -19,6 +19,7 @@ const (
 	BOOL    TokenType = "BOOL"
 	ASSERT  TokenType = "ASSERT"
 	FUNC    TokenType = "FN"
+	RETURN  TokenType = "RETURN"
 
 	UINT_64_LIT TokenType = "UINT_64_LIT"
 	TRUE_LIT    TokenType = "TRUE_LIT"

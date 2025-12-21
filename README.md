@@ -151,9 +151,3 @@ assert *x_ptr == 67;
 
 ### Functions
 
-- Todo
-  - Function definition
-    - Prologue/Epilogue
-    - Copy ABI register function parameters to local stack frame
-  - Function call
-    - 16 byte alignment

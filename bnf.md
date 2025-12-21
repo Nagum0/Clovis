@@ -13,6 +13,7 @@
                 <assert> |
                 <expressionStmt> |
                 <funcDeclaration> |
+                <returnStmt> |
                 <typeDeclaration>
 <varDecl> ::= <typeID> { "*" | "[" UINT_LIT "]" } IDENT ( ";" | "=" <expression> ";" )
 <varDefinition> ::= <lvalue> < "=" <expression> ";"
@@ -23,10 +24,10 @@
               "for" ident "=" <expression> ".." <expression> <expression> <statement>
 <assert> ::= "assert" <expression> ";"
 <expressionStmt> ::= <expression> ";"
-
 <funcDeclaration> ::= "fn" <ident> "(" [ <params> ] ")" [ "->" <typeID> ] "{" <statements> "}"
 <params> ::= <param> { "," <param> }
 <param> ::= <typeID> <ident>
+<returnStmt> ::= "return" [ <expression> ] ";"
 
 <expression> ::= <equality>
 <equality> ::= <comparison> { ("==" | "!=") <comparison> }

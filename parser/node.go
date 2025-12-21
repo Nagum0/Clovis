@@ -364,6 +364,26 @@ func (stmt *FuncDeclaration) Semantics(s *semantics.SemanticChecker) error {
 		}
 	}
 
+	// Check if there is a return at the end of the function if the
+	// return type is not Undefined
+	if !stmt.FuncType.Return.Equals(semantics.Undefined{}) {
+		err := s.AddError(
+			fmt.Sprintf(
+				"Function %v with return type %v missing a return statement",
+				stmt.Ident.Value, stmt.FuncType.Return.TypeID(),
+			),
+			stmt.Ident,
+		)
+
+		if len(stmt.Body) == 0 {
+			return err
+		}
+
+		if _, isReturn := stmt.Body[len(stmt.Body)-1].(*ReturnStmt); !isReturn {
+			return err
+		}
+	}
+
 	if err := s.PopStackFrame(); err != nil {
 		return err
 	}
@@ -374,6 +394,11 @@ func (stmt *FuncDeclaration) Semantics(s *semantics.SemanticChecker) error {
 
 // TODO: Implement reading rest of the parameters from the stack
 func (stmt FuncDeclaration) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(
+		e, "; ------------------------- Func %v %v ------------------------- \n",
+		stmt.Ident.Value, stmt.FuncType.TypeID(),
+	)
+
 	fmt.Fprintf(e, "%v:\n", stmt.Ident.Value)
 	fmt.Fprintf(e, "push rbp\nmov rbp, rsp\n")
 
@@ -399,10 +424,15 @@ func (stmt FuncDeclaration) EmitCode(e *codegen.Emitter) {
 		bodyStmt.EmitCode(e)
 	}
 
-	fmt.Fprintf(e, "mov rsp, rbp\npop rbp\nret\n")
+	// If no return type emit return implicitly
+	if stmt.FuncType.Return.Equals(semantics.Undefined{}) {
+		fmt.Fprintf(e, "leave\nret\n")
+	}
+
+	fmt.Fprintf(e, "\n")
 }
 
-// Transform the 64 bit register name to the correct size one specified by the type.
+// Transform the 64 bit register name to the correct subregister specified by the type.
 func transformParamRegister(t semantics.Type, paramRegister64 string) string {
 	isRRegister, _ := regexp.MatchString("r(1[0-5]|8|9)", paramRegister64)
 
@@ -431,6 +461,67 @@ func transformParamRegister(t semantics.Type, paramRegister64 string) string {
 	}
 
 	return paramRegister64
+}
+
+// A return statement.
+type ReturnStmt struct {
+	ReturnToken lexer.Token
+	ReturnExpr  *utils.Optional[Expression]
+	ReturnType  semantics.Type
+}
+
+func (stmt *ReturnStmt) Semantics(s *semantics.SemanticChecker) error {
+	if stmt.ReturnType.Equals(semantics.Undefined{}) {
+		if stmt.ReturnExpr.HasVal() {
+			return s.AddError(
+				fmt.Sprintf(
+					"Return should be empty for return type %v",
+					semantics.UNDEFINED,
+				),
+				stmt.ReturnToken,
+			)
+		}
+		return nil
+	} else {
+		var returnExpr Expression
+		if !stmt.ReturnExpr.HasVal() {
+			return s.AddError(
+				fmt.Sprintf(
+					"Expected return type %v but received %v",
+					stmt.ReturnType.TypeID(), semantics.UNDEFINED,
+				),
+				stmt.ReturnToken,
+			)
+		} else {
+			returnExpr = stmt.ReturnExpr.Value()
+		}
+
+		if err := returnExpr.Semantics(s); err != nil {
+			return err
+		}
+
+		if !stmt.ReturnType.Equals(returnExpr.ExprType()) {
+			return s.AddError(
+				fmt.Sprintf(
+					"Incorrect return type. Expected %v received %v",
+					stmt.ReturnType.TypeID(),
+					returnExpr.ExprType().TypeID(),
+				),
+				stmt.ReturnToken,
+			)
+		}
+
+		return nil
+	}
+}
+
+func (stmt ReturnStmt) EmitCode(e *codegen.Emitter) {
+	fmt.Fprintf(e, "; ------------------------- ReturnStmt ------------------------- \n")
+	if stmt.ReturnExpr.HasVal() {
+		stmt.ReturnExpr.Value().EmitCode(e)
+		fmt.Fprintf(e, "leave\n")
+		fmt.Fprintf(e, "ret\n")
+	}
 }
 
 // This interface represents an expression in the language.

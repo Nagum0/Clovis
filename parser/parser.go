@@ -3,6 +3,7 @@ package parser
 import (
 	"clovis/lexer"
 	"clovis/semantics"
+	"clovis/utils"
 	"fmt"
 	"strconv"
 )
@@ -28,6 +29,8 @@ type Parser struct {
 	Errors []error
 	tokens []lexer.Token
 	idx    int
+	// A stack of return values used for checking return statement validity.
+	returnValues utils.Stack[semantics.Type]
 }
 
 func NewParser(tokens []lexer.Token) *Parser {
@@ -86,6 +89,8 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return p.parseAssert()
 	} else if p.match(lexer.FUNC) {
 		return p.parseFuncDeclaration()
+	} else if p.match(lexer.RETURN) {
+		return p.parseReturnStmt()
 	} else {
 		return p.parseExpressionStmt()
 	}
@@ -369,6 +374,7 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 	} else {
 		funcDeclStmt.FuncType.Return = semantics.Undefined{}
 	}
+	p.returnValues.Push(funcDeclStmt.FuncType.Return)
 
 	if !p.match(lexer.OPEN_CURLY) {
 		e := NewParserError(
@@ -437,6 +443,40 @@ func (p *Parser) parseParam(params *map[string]semantics.Type) error {
 	(*params)[paramIdent.Value] = paramType
 
 	return nil
+}
+
+// <returnStmt> ::= "return" [ <expression> ] ";"
+func (p *Parser) parseReturnStmt() (Statement, error) {
+	returnStmt := ReturnStmt{}
+	returnStmt.ReturnToken = p.consume()
+
+	returnType, err := p.returnValues.Pop()
+	if err != nil {
+		return nil, err
+	}
+	returnStmt.ReturnType = returnType
+
+	if p.match(lexer.SEMI) {
+		p.consume() // ';'
+		returnStmt.ReturnExpr = utils.None[Expression]()
+		return &returnStmt, nil
+	}
+
+	returnExpr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	returnStmt.ReturnExpr = utils.Some(returnExpr)
+
+	if !p.match(lexer.SEMI) {
+		return nil, NewParserError(
+			p.peek(),
+			fmt.Sprintf("Expected ';' found %v", p.peek().Value),
+		)
+	}
+	p.consume() // ';'
+
+	return &returnStmt, nil
 }
 
 func (p *Parser) parseExpressionStmt() (Statement, error) {

@@ -79,8 +79,10 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 		)
 	}
 
+	_, isFunc := symbolType.(Func)
+
 	nextAddr, err := s.stackFrames.Pop()
-	if err != nil {
+	if err != nil && !isFunc {
 		return s.AddError(
 			"Empty stack frame",
 			token,
@@ -96,7 +98,7 @@ func (s *SemanticChecker) PushSymbol(ident string, symbolType Type, token lexer.
 		Size:   symbolSize,
 	}
 
-	if _, l := symbolType.(Func); !l {
+	if !isFunc {
 		s.stackFrames.Push(nextAddr + symbolSize)
 	}
 	s.symbolTable.Push(*symbol)

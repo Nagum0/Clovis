@@ -60,7 +60,7 @@ func (Undefined) ASMSize() string {
 }
 
 func (Undefined) Equals(other Type) bool {
-	return false
+	return other.TypeID() == UNDEFINED
 }
 
 func (Undefined) CanUseOperator(op string, operand Type) (bool, Type) {
