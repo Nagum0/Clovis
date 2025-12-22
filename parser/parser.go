@@ -394,6 +394,8 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 	}
 	p.consume() // '}'
 
+	p.returnValues.Pop()
+
 	return &funcDeclStmt, nil
 }
 
@@ -450,7 +452,7 @@ func (p *Parser) parseReturnStmt() (Statement, error) {
 	returnStmt := ReturnStmt{}
 	returnStmt.ReturnToken = p.consume()
 
-	returnType, err := p.returnValues.Pop()
+	returnType, err := p.returnValues.Top()
 	if err != nil {
 		return nil, err
 	}
