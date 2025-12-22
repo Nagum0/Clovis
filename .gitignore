@@ -1,2 +1,5 @@
 app_test/
 cclov
+out
+*o
+*.asm

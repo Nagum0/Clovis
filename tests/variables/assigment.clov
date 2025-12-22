@@ -1,0 +1,12 @@
+fn main() -> uint64 {
+    uint64 x;
+    x = 67;
+    assert x == 67;
+
+    uint64* x_ptr;
+    x_ptr = &x;
+    *x_ptr = 69;
+    assert x == 69;
+
+    return 0;
+}

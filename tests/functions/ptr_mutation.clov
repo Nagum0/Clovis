@@ -1,0 +1,11 @@
+fn f(uint64* x) {
+    *x = 67;
+}
+
+fn main() -> uint64 {
+    uint64 x = 66;
+    f(&x);
+    assert x == 67;
+
+    return 0;
+}

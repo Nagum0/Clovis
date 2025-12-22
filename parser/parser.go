@@ -75,7 +75,8 @@ func (p *Parser) parseStatements() []Statement {
 func (p *Parser) parseStatement() (Statement, error) {
 	if p.matchAny(lexer.UINT_64, lexer.UINT_32, lexer.UINT_16, lexer.UINT_8, lexer.BOOL) {
 		return p.parseVarDecl()
-	} else if p.matchAny(lexer.STAR, lexer.IDENT, lexer.OPEN_PAREN) {
+		// } else if p.matchAny(lexer.STAR, lexer.IDENT, lexer.OPEN_PAREN) {
+	} else if p.isVarDefinition() {
 		return p.parseVarDefinition()
 	} else if p.match(lexer.OPEN_CURLY) {
 		return p.parseBlockStmt()
@@ -84,6 +85,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 	} else if p.match(lexer.WHILE) {
 		return p.parseWhileStmt()
 	} else if p.match(lexer.FOR) {
+		// TODO: Implement for loop
 		p.parseForStmt()
 	} else if p.match(lexer.ASSERT) {
 		return p.parseAssert()
@@ -96,6 +98,21 @@ func (p *Parser) parseStatement() (Statement, error) {
 	}
 
 	return nil, nil
+}
+
+func (p *Parser) isVarDefinition() bool {
+	savedIdx := p.idx
+
+	_, err := p.parseExpression()
+	if err != nil {
+		p.idx = savedIdx
+		return false
+	}
+
+	isAssign := p.match(lexer.ASSIGN)
+
+	p.idx = savedIdx
+	return isAssign
 }
 
 // <varDecl> ::= <typeID> { "*" | "[" UINT_LIT "]" } IDENT ( ";" | "=" <expression> ";" )
@@ -707,9 +724,6 @@ func (p *Parser) parsePostfix() (Expression, error) {
 
 	return left, nil
 }
-
-// <args> ::= <args> { "," <arg> }
-// <arg> ::= <expression>
 
 // <primary> ::= <literal> | ident | "(" <expression> ")"
 func (p *Parser) parsePrimary() (Expression, error) {

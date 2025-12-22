@@ -1,0 +1,13 @@
+fn bools(bool l1, bool l2, bool l3, bool l4, bool l5, bool l6) {}
+
+fn bytes(uint8 l1, uint8 l2, uint8 l3, uint8 l4, uint8 l5, uint8 l6) {}
+
+fn words(uint16 l1, uint16 l2, uint16 l3, uint16 l4, uint16 l5, uint16 l6) {}
+
+fn dwords(uint32 l1, uint32 l2, uint32 l3, uint32 l4, uint32 l5, uint32 l6) {}
+
+fn qwords(uint64 l1, uint64 l2, uint64 l3, uint64 l4, uint64 l5, uint64 l6) {}
+
+fn main() -> uint64 {
+    return 0;
+}

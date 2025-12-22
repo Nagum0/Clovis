@@ -444,12 +444,17 @@ func transformParamRegister(t semantics.Type, paramRegister64 string) string {
 		if isRRegister {
 			return paramRegister64 + "w"
 		}
-		return paramRegister64[1:2]
+		return paramRegister64[1:3]
 	case semantics.Uint8, semantics.Bool:
 		if isRRegister {
 			return paramRegister64 + "b"
 		}
-		registerNameEnd := paramRegister64[1:2]
+
+		if paramRegister64 == "rdx" || paramRegister64 == "rcx" {
+			return paramRegister64[1:2] + "l"
+		}
+
+		registerNameEnd := paramRegister64[1:3]
 		registerNameEnd = strings.Replace(registerNameEnd, "x", "l", 1)
 		if registerNameEnd[0] == 's' || registerNameEnd[0] == 'd' || registerNameEnd[0] == 'b' {
 			return registerNameEnd + "l"
