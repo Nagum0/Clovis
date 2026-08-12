@@ -518,11 +518,13 @@ func (stmt *ReturnStmt) Semantics(s *semantics.SemanticChecker) error {
 
 func (stmt ReturnStmt) EmitCode(e *codegen.Emitter) {
 	fmt.Fprintf(e, "; ------------------------- ReturnStmt ------------------------- \n")
+
 	if stmt.ReturnExpr.HasVal() {
 		stmt.ReturnExpr.Value().EmitCode(e)
-		fmt.Fprintf(e, "leave\n")
-		fmt.Fprintf(e, "ret\n")
 	}
+
+	fmt.Fprintf(e, "leave\n")
+	fmt.Fprintf(e, "ret\n")
 }
 
 // This interface represents an expression in the language.
