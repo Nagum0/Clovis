@@ -22,7 +22,7 @@ between that and "done".
 
 ### 🔴 Blocks real programs
 
-- [ ] **Parameter order is nondeterministic.** `semantics.Func.Params` is a
+- [x] **Parameter order is nondeterministic.** `semantics.Func.Params` is a
   `map[string]Type`. Both register assignment (`FuncDeclaration.Semantics`
   building `stmt.Params`) and argument type-checking iterate that map, and Go
   randomizes map iteration order — so the *same source* can compile to a

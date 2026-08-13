@@ -436,8 +436,13 @@ func (a Array) CanUseUnaryOperator(op string) (bool, Type) {
 
 // This type represents a function with it's parameters and return type.
 type Func struct {
-	Params map[string]Type
+	Params []Param
 	Return Type
+}
+
+type Param struct {
+	Ident string
+	Type Type
 }
 
 func (f Func) TypeID() TypeID {
@@ -445,7 +450,7 @@ func (f Func) TypeID() TypeID {
 
 	builder.WriteString("FUNC_")
 	for _, param := range f.Params {
-		fmt.Fprintf(&builder, "%v_", param.TypeID())
+		fmt.Fprintf(&builder, "%v_", param.Type.TypeID())
 	}
 	fmt.Fprintf(&builder, "%v", f.Return.TypeID())
 

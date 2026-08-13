@@ -343,10 +343,10 @@ func (stmt *FuncDeclaration) Semantics(s *semantics.SemanticChecker) error {
 	s.PushStackFrame()
 	s.PushBlock()
 
-	for paramIdent, paramType := range stmt.FuncType.Params {
-		if err := s.PushSymbol(paramIdent, paramType, stmt.Ident); err != nil {
+	for _, param := range stmt.FuncType.Params {
+		if err := s.PushSymbol(param.Ident, param.Type, stmt.Ident); err != nil {
 			return s.AddError(
-				fmt.Sprintf("Error while pushing param %v to symbol table: %v", paramIdent, err.Error()),
+				fmt.Sprintf("Error while pushing param %v to symbol table: %v", param.Ident, err.Error()),
 				stmt.Ident,
 			)
 		}
@@ -856,8 +856,8 @@ func (exp *FuncCallExpression) Semantics(s *semantics.SemanticChecker) error {
 	exp.Type = funcType.Return
 
 	paramTypes := []semantics.Type{}
-	for _, t := range funcType.Params {
-		paramTypes = append(paramTypes, t)
+	for _, param := range funcType.Params {
+		paramTypes = append(paramTypes, param.Type)
 	}
 
 	if len(exp.Args) != len(paramTypes) {

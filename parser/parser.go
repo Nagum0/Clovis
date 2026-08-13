@@ -417,8 +417,8 @@ func (p *Parser) parseFuncDeclaration() (Statement, error) {
 }
 
 // <params> ::= <param> { "," <param> }
-func (p *Parser) parseParams() (map[string]semantics.Type, error) {
-	params := map[string]semantics.Type{}
+func (p *Parser) parseParams() ([]semantics.Param, error) {
+	params := []semantics.Param{}
 
 	if p.match(lexer.CLOSE_PAREN) {
 		return params, nil
@@ -439,7 +439,7 @@ func (p *Parser) parseParams() (map[string]semantics.Type, error) {
 	return params, nil
 }
 
-func (p *Parser) parseParam(params *map[string]semantics.Type) error {
+func (p *Parser) parseParam(params *[]semantics.Param) error {
 	if !p.matchAny(lexer.UINT_8, lexer.UINT_16, lexer.UINT_32, lexer.UINT_64, lexer.BOOL) {
 		return NewParserError(
 			p.peek(),
@@ -459,7 +459,10 @@ func (p *Parser) parseParam(params *map[string]semantics.Type) error {
 	}
 	paramIdent := p.consume()
 
-	(*params)[paramIdent.Value] = paramType
+	*params = append(*params, semantics.Param{
+		Ident: paramIdent.Value,
+		Type: paramType,
+	})
 
 	return nil
 }
